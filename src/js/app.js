@@ -629,6 +629,9 @@ const App = {
     // Theme
     $('themeBtn').addEventListener('click', ()=>this.toggleTheme());
 
+    // Backup
+    $('backupBtn').addEventListener('click', ()=>this.showBackupModal());
+
     // Edit mode (password protected)
     $('editBtn').addEventListener('click', ()=>this.tryToggleEdit());
 
@@ -964,6 +967,7 @@ const App = {
     this.editMode = on;
     document.body.classList.toggle('edit-mode', on);
     $('fab').style.display = on ? '' : 'none';
+    $('backupBtn').style.display = on ? '' : 'none';
     $('editBtn').textContent = on ? '🔓' : '✎';
     $('editBtn').classList.toggle('edit-on', on);
     $('editBtn').title = on ? '关闭编辑' : '编辑模式';
@@ -1188,6 +1192,69 @@ const App = {
   },
 
   closeModal() { $('modal').style.display='none'; $('modal').querySelector('.modal-box').classList.remove('modal-wide'); },
+
+  // ===== BACKUP & RESTORE =====
+  showBackupModal() {
+    this.modal({
+      title: '💾 数据备份',
+      body: `
+        <p style="font-size:0.85rem;color:var(--t2);margin-bottom:12px;line-height:1.6">数据存储在浏览器本地，清除缓存会丢失。<br>定期导出备份，安全无忧。</p>
+        <button class="btn btn-p" id="exportBtn" style="width:100%;margin-bottom:8px">📥 导出数据（下载 JSON）</button>
+        <button class="btn btn-s" id="importBtn" style="width:100%">📤 导入数据（恢复备份）</button>
+        <input type="file" id="importFile" accept=".json" style="display:none">
+        <p style="font-size:0.75rem;color:var(--t3);margin-top:10px">导入会覆盖当前所有数据，建议先导出备份。</p>
+      `,
+      footer: [{label:'关闭',cls:'btn-s'}],
+      onOpen: () => {
+        $('exportBtn').onclick = () => this.exportData();
+        $('importBtn').onclick = () => $('importFile').click();
+        $('importFile').onchange = (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          this.importData(file);
+        };
+      },
+    });
+  },
+
+  exportData() {
+    try {
+      const json = JSON.stringify(this.store.data, null, 2);
+      const blob = new Blob([json], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `portfolio-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      this.closeModal();
+      this.toast('✅ 导出成功');
+    } catch(e) {
+      this.toast('❌ 导出失败: ' + e.message);
+    }
+  },
+
+  importData(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!data.profile || !Array.isArray(data.works)) {
+          this.toast('❌ 无效的备份文件');
+          return;
+        }
+        if (!confirm('导入将覆盖现有所有数据，确认继续？')) return;
+        this.store.d = data;
+        this.store.save();
+        this.closeModal();
+        this.render();
+        this.toast('✅ 数据恢复成功');
+      } catch(err) {
+        this.toast('❌ 导入失败: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  },
 
   // ===== TOAST =====
   toast(msg, dur=2500) {
