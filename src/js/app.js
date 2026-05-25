@@ -21,6 +21,8 @@ const App = {
   _syncConnected: false,
   _syncToken: '',
   _syncLastSync: '',
+  _syncBusy: false,
+  _syncRetry: false,
   genId: () => 'i_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
 
   defaults: {
@@ -1281,6 +1283,17 @@ const App = {
       console.log('[sync] not connected, skipping');
       return;
     }
+    // Prevent overlapping sync calls (avoids 409 conflict)
+    if (this._syncBusy) {
+      console.log('[sync] busy, queuing retry...');
+      // Schedule a retry after current sync finishes
+      if (!this._syncRetry) {
+        this._syncRetry = true;
+        setTimeout(() => { this._syncRetry = false; this._saveToRepo(); }, 1500);
+      }
+      return;
+    }
+    this._syncBusy = true;
     console.log('[sync] saving to repo...');
     const json = JSON.stringify(this.store.data, null, 2);
     const bytes = new TextEncoder().encode(json);
@@ -1316,8 +1329,14 @@ const App = {
         this._showSyncIndicator(false);
         this.toast('❌ 同步失败 (HTTP ' + r.status + ')');
       }
+      this._syncBusy = false;
     })
-    .catch(e => { console.warn('[sync] error:', e); this._showSyncIndicator(false); this.toast('❌ 同步失败: ' + e.message); });
+    .catch(e => {
+      console.warn('[sync] error:', e);
+      this._showSyncIndicator(false);
+      this.toast('❌ 同步失败: ' + e.message);
+      this._syncBusy = false;
+    });
   },
 
   _loadFromRepo() {
