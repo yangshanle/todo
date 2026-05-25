@@ -18,6 +18,10 @@ const App = {
   searchArticles: '',
   _gvList: [],
   _gvIdx: 0,
+  _gistConnected: false,
+  _gistId: '',
+  _gistToken: '',
+  _gistLastSync: '',
   genId: () => 'i_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
 
   defaults: {
@@ -65,6 +69,7 @@ const App = {
       this.switchPage('home');
       this.initScrollEffects();
       this.generatePageDecorations();
+      this.gistInit();
     } catch(e) { console.error('init error:', e); }
   },
 
@@ -1193,8 +1198,142 @@ const App = {
 
   closeModal() { $('modal').style.display='none'; $('modal').querySelector('.modal-box').classList.remove('modal-wide'); },
 
+  // ===== GITHUB GIST SYNC =====
+  gistInit() {
+    try {
+      const tid = localStorage.getItem('portfolio_gist_id');
+      const tok = localStorage.getItem('portfolio_gist_token');
+      this._gistId = tid || '';
+      this._gistToken = tok ? atob(tok) : '';
+      this._gistConnected = !!(this._gistId && this._gistToken);
+      if (this._gistConnected) {
+        this._gistLastSync = localStorage.getItem('portfolio_gist_sync') || '';
+        const self = this;
+        const origSave = this.store.save.bind(this.store);
+        this.store.save = function() { origSave(); self.gistSync(); };
+      }
+    } catch(e) { console.warn('gistInit:', e); }
+  },
+
+  gistConnect() {
+    const tok = $('gistTokenInput')?.value?.trim();
+    if (!tok) { this.toast('请输入 Personal Access Token'); return; }
+    fetch('https://api.github.com/gists', {
+      headers: {'Authorization': 'Bearer '+tok, 'Accept': 'application/vnd.github+json'},
+    }).then(r=>{
+      if (!r.ok) throw new Error('Token 无效或没有 gist 权限');
+      return r.json();
+    }).then(gists=>{
+      let gist = gists.find(g => g.description === 'Portfolio Auto Backup');
+      if (gist) return this._gistUseExisting(gist, tok);
+      else return this._gistCreateNew(tok);
+    }).catch(e=>{ this.toast('❌ '+e.message); });
+  },
+
+  _gistUseExisting(gist, tok) {
+    this._gistId = gist.id; this._gistToken = tok;
+    localStorage.setItem('portfolio_gist_id', gist.id);
+    localStorage.setItem('portfolio_gist_token', btoa(tok));
+    this._gistConnected = true;
+    const self = this;
+    const origSave = this.store.save.bind(this.store);
+    this.store.save = function() { origSave(); self.gistSync(); };
+    return this.gistSync().then(() => {
+      this.closeModal(); this.toast('✅ 已连接到 Gist 自动同步');
+      setTimeout(()=>this.showBackupModal(), 500);
+    }).catch(e=>{ this.toast('❌ 同步失败: '+e.message); });
+  },
+
+  _gistCreateNew(tok) {
+    this._gistToken = tok;
+    return fetch('https://api.github.com/gists', {
+      method: 'POST',
+      headers: {'Authorization': 'Bearer '+tok, 'Content-Type':'application/json', 'Accept': 'application/vnd.github+json'},
+      body: JSON.stringify({
+        description: 'Portfolio Auto Backup', public: false,
+        files: {'portfolio-data.json': {content: JSON.stringify(this.store.data, null, 2)}}
+      }),
+    }).then(r=>{ if (!r.ok) throw new Error('创建 Gist 失败'); return r.json(); }).then(gist=>{
+      this._gistId = gist.id;
+      localStorage.setItem('portfolio_gist_id', gist.id);
+      localStorage.setItem('portfolio_gist_token', btoa(tok));
+      this._gistConnected = true;
+      const self = this;
+      const origSave = this.store.save.bind(this.store);
+      this.store.save = function() { origSave(); self.gistSync(); };
+      this.closeModal(); this.toast('✅ Gist 已创建，自动同步已开启');
+      setTimeout(()=>this.showBackupModal(), 500);
+    }).catch(e=>{ this.toast('❌ '+e.message); });
+  },
+
+  gistSync() {
+    if (!this._gistConnected || !this._gistId || !this._gistToken) return Promise.resolve();
+    return fetch('https://api.github.com/gists/'+this._gistId, {
+      method: 'PATCH',
+      headers: {'Authorization': 'Bearer '+this._gistToken, 'Content-Type':'application/json', 'Accept': 'application/vnd.github+json'},
+      body: JSON.stringify({files: {'portfolio-data.json': {content: JSON.stringify(this.store.data, null, 2)}}}),
+    }).then(r=>{ if (!r.ok) throw new Error('sync failed');
+      const now = new Date().toLocaleString();
+      this._gistLastSync = now;
+      localStorage.setItem('portfolio_gist_sync', now);
+    }).catch(e=>{ console.warn('gistSync:', e); });
+  },
+
+  gistLoad() {
+    if (!this._gistConnected || !this._gistId || !this._gistToken) return;
+    const gistId = this._gistId;
+    fetch('https://api.github.com/gists/'+gistId, {
+      headers: {'Authorization': 'Bearer '+this._gistToken, 'Accept': 'application/vnd.github+json'},
+    }).then(r=>{ if (!r.ok) throw new Error('获取 Gist 失败'); return r.json(); }).then(gist=>{
+      const content = gist.files?.['portfolio-data.json']?.content;
+      if (!content) { this.toast('❌ Gist 中没有数据'); return; }
+      const data = JSON.parse(content);
+      if (!data.profile) { this.toast('❌ 无效的数据'); return; }
+      if (!confirm('从 Gist 加载数据将覆盖当前内容，确认继续？')) return;
+      this.store.d = data; this.store.save(); this.render();
+      this.closeModal(); this.toast('✅ 数据已从 Gist 恢复');
+    }).catch(e=>{ this.toast('❌ '+e.message); });
+  },
+
+  gistDisconnect() {
+    if (!confirm('断开 Gist 同步连接？数据不会丢失。')) return;
+    this._gistConnected = false; this._gistId = ''; this._gistToken = ''; this._gistLastSync = '';
+    localStorage.removeItem('portfolio_gist_id');
+    localStorage.removeItem('portfolio_gist_token');
+    localStorage.removeItem('portfolio_gist_sync');
+    const self = this;
+    this.store.save = function() { try{localStorage.setItem(self.store.key,JSON.stringify(self.store.d));}catch(e){console.warn(e);} };
+    this.closeModal(); this.toast('已断开 Gist 同步');
+    setTimeout(()=>this.showBackupModal(), 500);
+  },
+
   // ===== BACKUP & RESTORE =====
   showBackupModal() {
+    const connected = this._gistConnected;
+    let gistHtml;
+    if (connected) {
+      gistHtml = `
+        <div style="margin:14px 0;padding:12px;border-radius:8px;background:var(--alt);border:1px solid var(--b2)">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+            <span style="color:#4CAF50">✅</span>
+            <span style="font-size:0.85rem;font-weight:600">Gist 已连接</span>
+          </div>
+          ${this._gistLastSync?'<div style="font-size:0.72rem;color:var(--t3);margin-bottom:10px">上次同步: '+esc(this._gistLastSync)+'</div>':''}
+          <button class="btn btn-sm btn-p" id="gistSyncBtn" style="width:100%;margin-bottom:4px">🔄 立即同步</button>
+          <button class="btn btn-sm btn-s" id="gistLoadBtn" style="width:100%;margin-bottom:4px">📥 从 Gist 加载</button>
+          <button class="btn btn-sm" id="gistDisBtn" style="width:100%;background:var(--tag-bg);color:var(--red)">🔌 断开连接</button>
+        </div>
+      `;
+    } else {
+      gistHtml = `
+        <div style="margin:14px 0;padding:12px;border-radius:8px;background:var(--alt);border:1px solid var(--b2)">
+          <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px">☁️ GitHub 自动同步</div>
+          <p style="font-size:0.75rem;color:var(--t3);margin-bottom:8px;line-height:1.5">开启后每次修改自动备份到 GitHub Gist。<br>需要 <a href="https://github.com/settings/tokens/new?scopes=gist&description=Portfolio+Backup" target="_blank" style="color:var(--red)">创建 Token</a>（勾选 gist 权限）</p>
+          <input id="gistTokenInput" type="password" placeholder="粘贴 Personal Access Token" style="width:100%;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:0.82rem;outline:none;margin-bottom:6px">
+          <button class="btn btn-sm btn-p" id="gistConnBtn" style="width:100%">🔗 连接</button>
+        </div>
+      `;
+    }
     this.modal({
       title: '💾 数据备份',
       body: `
@@ -1202,6 +1341,7 @@ const App = {
         <button class="btn btn-p" id="exportBtn" style="width:100%;margin-bottom:8px">📥 导出数据（下载 JSON）</button>
         <button class="btn btn-s" id="importBtn" style="width:100%">📤 导入数据（恢复备份）</button>
         <input type="file" id="importFile" accept=".json" style="display:none">
+        ${gistHtml}
         <p style="font-size:0.75rem;color:var(--t3);margin-top:10px">导入会覆盖当前所有数据，建议先导出备份。</p>
       `,
       footer: [{label:'关闭',cls:'btn-s'}],
@@ -1213,6 +1353,13 @@ const App = {
           if (!file) return;
           this.importData(file);
         };
+        if (connected) {
+          $('gistSyncBtn').onclick = () => { this.gistSync(); this.toast('🔄 同步中...'); };
+          $('gistLoadBtn').onclick = () => this.gistLoad();
+          $('gistDisBtn').onclick = () => this.gistDisconnect();
+        } else {
+          $('gistConnBtn').onclick = () => this.gistConnect();
+        }
       },
     });
   },
