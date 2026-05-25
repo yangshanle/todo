@@ -57,7 +57,7 @@ const App = {
       '设计不是让它看起来怎么样，而是让它用起来怎么样。',
       'Bug 不是程序的错误，是程序在跟你开玩笑。',
     ],
-    _gistPublicUrl: 'https://gist.githubusercontent.com/yangshanle/93c938d2e3f563835a16d320b7ebae19/raw/portfolio-data.json',
+    _gistPublicUrl: 'https://gist.githubusercontent.com/yangshanle/8e9764f2303bbc19564d57d301848096/raw/portfolio-data.json',
   },
 
   init() {
