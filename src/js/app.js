@@ -1400,6 +1400,44 @@ const App = {
     }).catch(e=>{ this.toast('❌ '+e.message); });
   },
 
+  gistRepair() {
+    const tok = this._gistToken;
+    if (!tok) { this.toast('❌ 没有已保存的 Token，请断开后重新连接'); return; }
+    this.toast('🔄 正在重新配对 Gist...');
+    fetch('https://api.github.com/gists', {
+      headers: {'Authorization': 'Bearer '+tok, 'Accept': 'application/vnd.github+json'},
+    }).then(r=>{
+      if (!r.ok) throw new Error('Token 无效');
+      return r.json();
+    }).then(gists=>{
+      const currentUrl = this.store.data._gistPublicUrl || this.defaults._gistPublicUrl || '';
+      const urlMatch = currentUrl.match(/githubusercontent\.com\/[^/]+\/([a-f0-9]+)/);
+      if (urlMatch) {
+        const byUrl = gists.find(g => g.id === urlMatch[1]);
+        if (byUrl?.public) {
+          this._gistId = byUrl.id;
+          localStorage.setItem('portfolio_gist_id', byUrl.id);
+          const rawUrl = byUrl.files?.['portfolio-data.json']?.raw_url || '';
+          if (rawUrl) {
+            this.store.data._gistPublicUrl = rawUrl;
+            this._gistPublicUrl = rawUrl;
+            this.store.save();
+          }
+          const self = this;
+          const origSave = this.store.save.bind(this.store);
+          this.store.save = function() { origSave(); self.gistSync(); };
+          this.gistSync().then(() => {
+            this.closeModal();
+            this.toast('✅ 已重新配对到公开 Gist，数据已同步');
+            setTimeout(()=>this.showBackupModal(), 500);
+          });
+          return;
+        }
+      }
+      this.toast('❌ 未找到匹配的公开 Gist，请尝试"创建公开 Gist"');
+    }).catch(e=>{ this.toast('❌ '+e.message); });
+  },
+
   gistSync() {
     if (!this._gistConnected || !this._gistId || !this._gistToken) return Promise.resolve();
     return fetch('https://api.github.com/gists/'+this._gistId, {
@@ -1494,6 +1532,7 @@ const App = {
           ${pubUrl?`<div style="font-size:0.7rem;color:var(--t2);margin-bottom:8px;word-break:break-all;padding:6px;background:var(--card);border-radius:6px">🔗 ${esc(pubUrl)}</div>`:'<div style="font-size:0.72rem;color:var(--t3);margin-bottom:8px">ℹ️ 当前 Gist 非公开，访客无法读取</div>'}
           <button class="btn btn-sm btn-p" id="gistSyncBtn" style="width:100%;margin-bottom:4px">🔄 立即同步</button>
           <button class="btn btn-sm btn-s" id="gistLoadBtn" style="width:100%;margin-bottom:4px">📥 从 Gist 加载</button>
+          <button class="btn btn-sm" id="gistRepairBtn" style="width:100%;margin-bottom:4px;background:var(--link);color:#fff">🔧 修复同步（重新配对到公开 Gist）</button>
           <button class="btn btn-sm" id="gistNewPublicBtn" style="width:100%;margin-bottom:4px;background:var(--gold);color:#fff">🆕 创建公开 Gist</button>
           <button class="btn btn-sm" id="gistDisBtn" style="width:100%;background:var(--tag-bg);color:var(--red)">🔌 断开连接</button>
         </div>
@@ -1539,6 +1578,7 @@ const App = {
           $('gistSyncBtn').onclick = () => { this.gistSync(); this.toast('🔄 同步中...'); };
           $('gistLoadBtn').onclick = () => this.gistLoad();
           $('gistNewPublicBtn').onclick = () => this.gistCreatePublic();
+          $('gistRepairBtn').onclick = () => this.gistRepair();
           $('gistDisBtn').onclick = () => this.gistDisconnect();
         } else {
           $('gistConnBtn').onclick = () => this.gistConnect();
