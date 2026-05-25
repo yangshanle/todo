@@ -3,6 +3,7 @@
 'use strict';
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _cleanUrl(u) { return u ? u.replace(/\/raw\/[a-f0-9]+\//, '/raw/') : ''; }
 function $(id) { return document.getElementById(id); }
 
 const EDIT_PW = '1';
@@ -1324,7 +1325,7 @@ const App = {
     this._gistConnected = true;
     // Only save public URL if gist is actually public
     if (gist.public) {
-      const rawUrl = gist.files?.['portfolio-data.json']?.raw_url || '';
+      const rawUrl = _cleanUrl(gist.files?.['portfolio-data.json']?.raw_url || '');
       if (rawUrl) {
         this.store.data._gistPublicUrl = rawUrl;
         this._gistPublicUrl = rawUrl;
@@ -1355,7 +1356,7 @@ const App = {
       localStorage.setItem('portfolio_gist_token', btoa(tok));
       this._gistConnected = true;
       // Save public raw URL for all visitors
-      const rawUrl = gist.files?.['portfolio-data.json']?.raw_url || '';
+      const rawUrl = _cleanUrl(gist.files?.['portfolio-data.json']?.raw_url || '');
       if (rawUrl) {
         this.store.data._gistPublicUrl = rawUrl;
         this.store.save();
@@ -1382,7 +1383,7 @@ const App = {
     }).then(r=>{ if (!r.ok) throw new Error('创建失败'); return r.json(); }).then(gist=>{
       this._gistId = gist.id;
       localStorage.setItem('portfolio_gist_id', gist.id);
-      const rawUrl = gist.files?.['portfolio-data.json']?.raw_url || '';
+      const rawUrl = _cleanUrl(gist.files?.['portfolio-data.json']?.raw_url || '');
       if (rawUrl) {
         this.store.data._gistPublicUrl = rawUrl;
         this._gistPublicUrl = rawUrl;
@@ -1417,7 +1418,7 @@ const App = {
         if (byUrl?.public) {
           this._gistId = byUrl.id;
           localStorage.setItem('portfolio_gist_id', byUrl.id);
-          const rawUrl = byUrl.files?.['portfolio-data.json']?.raw_url || '';
+          const rawUrl = _cleanUrl(byUrl.files?.['portfolio-data.json']?.raw_url || '');
           if (rawUrl) {
             this.store.data._gistPublicUrl = rawUrl;
             this._gistPublicUrl = rawUrl;
