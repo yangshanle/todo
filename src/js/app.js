@@ -1280,7 +1280,7 @@ const App = {
       if (this._gistConnected) {
         this._gistLastSync = localStorage.getItem('portfolio_gist_sync') || '';
         const self = this;
-        const origSave = this.store.save.bind(this.store);
+        const origSave = this.store._origSave;
         this.store.save = function() { origSave(); self.gistSync(); };
       }
       if (this._gistPublicUrl || this._gistConnected) {
@@ -1333,7 +1333,7 @@ const App = {
       }
     }
     const self = this;
-    const origSave = this.store.save.bind(this.store);
+    const origSave = this.store._origSave;
     this.store.save = function() { origSave(); self.gistSync(); };
     return this.gistSync().then(() => {
       this.closeModal(); this.toast('✅ 已连接到 Gist 自动同步');
@@ -1362,7 +1362,7 @@ const App = {
         this.store.save();
       }
       const self = this;
-      const origSave = this.store.save.bind(this.store);
+      const origSave = this.store._origSave;
       this.store.save = function() { origSave(); self.gistSync(); };
       this.closeModal(); this.toast('✅ 公开 Gist 已创建，数据将自动同步给所有访问者');
       setTimeout(()=>this.showBackupModal(), 500);
@@ -1391,7 +1391,7 @@ const App = {
       }
       // Patch save to auto-sync to this public gist
       const self = this;
-      const origSave = this.store.save.bind(this.store);
+      const origSave = this.store._origSave;
       this.store.save = function() { origSave(); self.gistSync(); };
       // Push data immediately
       this.gistSync();
@@ -1425,7 +1425,7 @@ const App = {
             this.store.save();
           }
           const self = this;
-          const origSave = this.store.save.bind(this.store);
+          const origSave = this.store._origSave;
           this.store.save = function() { origSave(); self.gistSync(); };
           this.gistSync().then(() => {
             this.closeModal();
@@ -1441,27 +1441,31 @@ const App = {
 
   gistSync() {
     if (!this._gistConnected || !this._gistId || !this._gistToken) return Promise.resolve();
-    const body = JSON.stringify(this.store.data, null, 2);
-    const h = {'Authorization': 'Bearer '+this._gistToken, 'Content-Type':'application/json', 'Accept': 'application/vnd.github+json'};
+    var self = this;
+    var body = JSON.stringify(this.store.data, null, 2);
+    var h = {'Authorization': 'Bearer '+this._gistToken, 'Content-Type':'application/json', 'Accept': 'application/vnd.github+json'};
     // Sync to current gist
-    const main = fetch('https://api.github.com/gists/'+this._gistId, {
+    var main = fetch('https://api.github.com/gists/'+this._gistId, {
       method: 'PATCH', headers: h,
       body: JSON.stringify({files: {'portfolio-data.json': {content: body}}}),
-    }).then(r=>{ if (!r.ok) throw new Error('sync failed');
-      const now = new Date().toLocaleString();
-      this._gistLastSync = now;
+    }).then(function(r){ if (!r.ok) throw new Error('同步失败 HTTP '+r.status);
+      var now = new Date().toLocaleString();
+      self._gistLastSync = now;
       localStorage.setItem('portfolio_gist_sync', now);
-    }).catch(e=>{ console.warn('gistSync:', e); });
+      console.log('gistSync: OK', now);
+    }).catch(function(e){ console.warn('gistSync:', e); self.toast('❌ Gist 同步失败: '+e.message); });
     // Also sync to defaults public gist so phones using the baked-in URL
     // always get fresh data and discover the current gist URL.
-    const defUrl = this.defaults._gistPublicUrl;
-    const defId = defUrl ? (defUrl.match(/githubusercontent\.com\/[^/]+\/([a-f0-9]+)/)||[])[1] : null;
+    var defUrl = this.defaults._gistPublicUrl;
+    var defId = defUrl ? (defUrl.match(/githubusercontent\.com\/[^/]+\/([a-f0-9]+)/)||[])[1] : null;
     if (defId && defId !== this._gistId) {
-      const d = JSON.parse(body);
+      var d = JSON.parse(body);
       d._gistPublicUrl = this.store.data._gistPublicUrl || '';
       fetch('https://api.github.com/gists/'+defId, {
         method: 'PATCH', headers: h,
         body: JSON.stringify({files: {'portfolio-data.json': {content: JSON.stringify(d)}}}),
+      }).then(function(r2){ if (!r2.ok) throw new Error('HTTP '+r2.status);
+        console.log('defaults-sync: OK');
       }).catch(function(e){ console.warn('defaults-sync:', e); });
     }
     return main;
@@ -1485,19 +1489,22 @@ const App = {
 
   gistLoadSilent() {
     if (this._gistPublicUrl) {
-      // Load from public raw URL (no auth needed), bypass cache
-      fetch(this._gistPublicUrl, {cache: 'no-cache'})
-        .then(r=>{ if (!r.ok) return null; return r.json(); })
-        .then(data=>{
+      // Load from public raw URL (no auth needed), fully bypass cache
+      var self = this;
+      fetch(this._gistPublicUrl, {cache: 'no-store'})
+        .then(function(r){ if (!r.ok) return null; return r.json(); })
+        .then(function(data){
           if (!data || !data.profile || !data.works) return;
-          if ((data.works?.length||0) >= (this.store.data.works?.length||0) &&
-              (data.articles?.length||0) >= (this.store.data.articles?.length||0) &&
-              (data.gallery?.length||0) >= (this.store.data.gallery?.length||0)) {
-            this.store.d = data;
-            this.store.save();
-            this.render();
+          // Always sync if gist has more/equal items, or has a newer public URL
+          if ((data.works?.length||0) >= (self.store.data.works?.length||0) &&
+              (data.articles?.length||0) >= (self.store.data.articles?.length||0) &&
+              (data.gallery?.length||0) >= (self.store.data.gallery?.length||0)) {
+            self.store.d = data;
+            self.store.save();
+            self.render();
+            console.log('gistLoadSilent: data synced from', self._gistPublicUrl);
           }
-        }).catch(e=>{ console.warn('gistPublicLoad:', e); });
+        }).catch(function(e){ console.warn('gistPublicLoad:', e); });
       return;
     }
     if (!this._gistConnected || !this._gistId || !this._gistToken) return;
@@ -1526,8 +1533,8 @@ const App = {
     localStorage.removeItem('portfolio_gist_token');
     localStorage.removeItem('portfolio_gist_sync');
     // Keep _gistPublicUrl so visitors can still load the last synced data
-    const self = this;
-    this.store.save = function() { try{localStorage.setItem(self.store.key,JSON.stringify(self.store.d));}catch(e){console.warn(e);} };
+    // Restore original save
+    this.store.save = this.store._origSave;
     this.closeModal(); this.toast('已断开 Gist 同步（公开数据源保留）');
     setTimeout(()=>this.showBackupModal(), 500);
   },
@@ -1683,7 +1690,7 @@ const App = {
 
 // ===== STORE =====
 class Store {
-  constructor(key,defs){this.key=key;this.defs=defs;this.d=this._load();}
+  constructor(key,defs){this.key=key;this.defs=defs;this.d=this._load();this._origSave=this.save.bind(this);}
   get data(){return this.d;}
   _load(){try{const r=localStorage.getItem(this.key);if(!r)return JSON.parse(JSON.stringify(this.defs));return this._m(JSON.parse(JSON.stringify(this.defs)),JSON.parse(r));}catch{return JSON.parse(JSON.stringify(this.defs));}}
   save(){try{localStorage.setItem(this.key,JSON.stringify(this.d));}catch(e){console.warn(e);}}
