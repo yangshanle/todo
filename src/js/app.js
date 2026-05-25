@@ -1308,12 +1308,14 @@ const App = {
     localStorage.setItem('portfolio_gist_id', gist.id);
     localStorage.setItem('portfolio_gist_token', btoa(tok));
     this._gistConnected = true;
-    // Try to get public raw URL
-    const rawUrl = gist.files?.['portfolio-data.json']?.raw_url || '';
-    if (rawUrl) {
-      this.store.data._gistPublicUrl = rawUrl;
-      this._gistPublicUrl = rawUrl;
-      this.store.save();
+    // Only save public URL if gist is actually public
+    if (gist.public) {
+      const rawUrl = gist.files?.['portfolio-data.json']?.raw_url || '';
+      if (rawUrl) {
+        this.store.data._gistPublicUrl = rawUrl;
+        this._gistPublicUrl = rawUrl;
+        this.store.save();
+      }
     }
     const self = this;
     const origSave = this.store.save.bind(this.store);
@@ -1372,8 +1374,14 @@ const App = {
         this._gistPublicUrl = rawUrl;
         this.store.save();
       }
+      // Patch save to auto-sync to this public gist
+      const self = this;
+      const origSave = this.store.save.bind(this.store);
+      this.store.save = function() { origSave(); self.gistSync(); };
+      // Push data immediately
+      this.gistSync();
       this.closeModal();
-      this.toast('✅ 公开 Gist 已创建！Raw URL 已保存');
+      this.toast('✅ 公开 Gist 已创建！以后修改自动同步到此公开 Gist');
       setTimeout(()=>this.showBackupModal(), 500);
     }).catch(e=>{ this.toast('❌ '+e.message); });
   },
@@ -1500,10 +1508,11 @@ const App = {
         ${gistHtml}
         <div style="margin:14px 0;padding:12px;border-radius:8px;background:var(--alt);border:1px solid var(--b2)">
           <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px">🌐 公开数据同步</div>
-          <p style="font-size:0.75rem;color:var(--t3);margin-bottom:8px;line-height:1.5">设置后所有访问者自动加载此数据源，无需登录。<br>连接 Gist 后会自动生成公开链接。</p>
-          <input id="pubUrlInput" type="url" placeholder="https://gist.githubusercontent.com/.../raw/..." style="width:100%;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:0.82rem;outline:none;margin-bottom:6px" value="${esc(this.store.data._gistPublicUrl||'')}">
-          <button class="btn btn-sm btn-p" id="pubUrlSaveBtn" style="width:100%">💾 保存公开数据源</button>
-          ${this.store.data._gistPublicUrl?`<div style="font-size:0.7rem;color:var(--t3);margin-top:6px;word-break:break-all">当前: ${esc(this.store.data._gistPublicUrl)}</div>`:''}
+          <p style="font-size:0.75rem;color:var(--t3);margin-bottom:8px;line-height:1.5">所有访问者自动从此地址加载数据，无需登录。<br>该地址由 Gist 连接自动管理，不会误删除。</p>
+          ${this.store.data._gistPublicUrl
+            ? `<div style="font-size:0.72rem;color:var(--t2);word-break:break-all;padding:8px;background:var(--card);border-radius:6px;border:1px solid var(--b2);font-family:monospace">${esc(this.store.data._gistPublicUrl)}</div><div style="font-size:0.7rem;color:var(--t3);margin-top:6px">✅ 已在代码中预设，所有访客自动读取</div>`
+            : `<div style="font-size:0.75rem;color:var(--t3);font-style:italic">连接公开 Gist 后自动生成</div>`
+          }
         </div>
         <p style="font-size:0.75rem;color:var(--t3);margin-top:10px">导入会覆盖当前所有数据，建议先导出备份。</p>
       `,
@@ -1515,16 +1524,6 @@ const App = {
           const file = e.target.files[0];
           if (!file) return;
           this.importData(file);
-        };
-        $('pubUrlSaveBtn').onclick = () => {
-          const url = $('pubUrlInput').value.trim();
-          if (!url) { this.toast('请输入公开 Gist 的 Raw URL'); return; }
-          this.store.data._gistPublicUrl = url;
-          this._gistPublicUrl = url;
-          this.store.save();
-          this.closeModal();
-          this.toast('✅ 公开数据源已保存，刷新后生效');
-          setTimeout(()=>this.showBackupModal(), 500);
         };
         if (connected) {
           $('gistSyncBtn').onclick = () => { this.gistSync(); this.toast('🔄 同步中...'); };
