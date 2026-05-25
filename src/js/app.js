@@ -3,7 +3,6 @@
 'use strict';
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function _cleanUrl(u) { return u ? u.replace(/\/raw\/[a-f0-9]+\//, '/raw/') : ''; }
 function $(id) { return document.getElementById(id); }
 
 const EDIT_PW = '1';
@@ -63,7 +62,9 @@ const App = {
 
   init() {
     try {
-      this.store = new Store('portfolio_data', this.defaults);
+      this.store = new Store('portfolio_data', this.defaults, () => {
+        if (this._gistConnected) this.gistSync();
+      });
       // Migrate skills from profile to global
       const d = this.store.data;
       if (d.profile && d.profile.skills && !d.skills) {
@@ -1268,6 +1269,10 @@ const App = {
   closeModal() { $('modal').style.display='none'; $('modal').querySelector('.modal-box').classList.remove('modal-wide'); },
 
   // ===== GITHUB GIST SYNC =====
+  _getGistRawUrl(gistId) {
+    return 'https://gist.githubusercontent.com/'+gistId+'/raw/portfolio-data.json';
+  },
+
   gistInit() {
     try {
       const tid = localStorage.getItem('portfolio_gist_id');
@@ -1275,14 +1280,8 @@ const App = {
       this._gistId = tid || '';
       this._gistToken = tok ? atob(tok) : '';
       this._gistConnected = !!(this._gistId && this._gistToken);
-      // Public gist URL — works for all visitors without login
       this._gistPublicUrl = this.store.data._gistPublicUrl || this.defaults._gistPublicUrl || '';
-      if (this._gistConnected) {
-        this._gistLastSync = localStorage.getItem('portfolio_gist_sync') || '';
-        const self = this;
-        const origSave = this.store._origSave;
-        this.store.save = function() { origSave(); self.gistSync(); };
-      }
+      this._gistLastSync = localStorage.getItem('portfolio_gist_sync') || '';
       if (this._gistPublicUrl || this._gistConnected) {
         this.gistLoadSilent();
       }
@@ -1298,43 +1297,40 @@ const App = {
       if (!r.ok) throw new Error('Token 无效或没有 gist 权限');
       return r.json();
     }).then(gists=>{
-      // Priority 1: find gist matching current public URL
+      // Priority 1: gist matching current public URL
       const currentUrl = this.store.data._gistPublicUrl || '';
-      const urlMatch = currentUrl.match(/githubusercontent\.com\/[^/]+\/([a-f0-9]+)/);
-      if (urlMatch) {
-        const byUrl = gists.find(g => g.id === urlMatch[1]);
+      const currentId = currentUrl.match(/gist\.githubusercontent\.com\/(?:[^/]+\/)?([a-f0-9]+)\//)?.[1];
+      if (currentId) {
+        const byUrl = gists.find(g => g.id === currentId);
         if (byUrl?.public) return this._gistUseExisting(byUrl, tok);
         if (byUrl && !byUrl.public) {
-          // Current public gist became private — create fresh one
-          this.toast('ℹ️ 现有 Gist 已变私有，正在创建新的公开 Gist...');
+          this.toast('ℹ️ 现有 Gist 已变私有，创建新的公开 Gist...');
           return this._gistCreateNew(tok);
         }
       }
-      // Priority 2: find by description
-      const byDesc = gists.find(g => g.description === 'Portfolio Auto Backup');
-      if (byDesc?.public) return this._gistUseExisting(byDesc, tok);
-      // Priority 3: create new public gist
+      // Priority 2: by description
+      const byDesc = gists.find(g => g.description === 'Portfolio Auto Backup' && g.public);
+      if (byDesc) return this._gistUseExisting(byDesc, tok);
+      // Priority 3: create new
       return this._gistCreateNew(tok);
     }).catch(e=>{ this.toast('❌ '+e.message); });
   },
 
   _gistUseExisting(gist, tok) {
-    this._gistId = gist.id; this._gistToken = tok;
+    this._gistId = gist.id;
+    this._gistToken = tok;
     localStorage.setItem('portfolio_gist_id', gist.id);
     localStorage.setItem('portfolio_gist_token', btoa(tok));
     this._gistConnected = true;
-    // Only save public URL if gist is actually public
+
+    const stableUrl = this._getGistRawUrl(gist.id);
     if (gist.public) {
-      const rawUrl = _cleanUrl(gist.files?.['portfolio-data.json']?.raw_url || '');
-      if (rawUrl) {
-        this.store.data._gistPublicUrl = rawUrl;
-        this._gistPublicUrl = rawUrl;
-        this.store.save();
-      }
+      this.store.data._gistPublicUrl = stableUrl;
+      this._gistPublicUrl = stableUrl;
+      // Direct localStorage write, bypass onSave (avoid redundant gistSync)
+      try { localStorage.setItem(this.store.key, JSON.stringify(this.store.data)); } catch(e) {}
     }
-    const self = this;
-    const origSave = this.store._origSave;
-    this.store.save = function() { origSave(); self.gistSync(); };
+
     return this.gistSync().then(() => {
       this.closeModal(); this.toast('✅ 已连接到 Gist 自动同步');
       setTimeout(()=>this.showBackupModal(), 500);
@@ -1355,48 +1351,40 @@ const App = {
       localStorage.setItem('portfolio_gist_id', gist.id);
       localStorage.setItem('portfolio_gist_token', btoa(tok));
       this._gistConnected = true;
-      // Save public raw URL for all visitors
-      const rawUrl = _cleanUrl(gist.files?.['portfolio-data.json']?.raw_url || '');
-      if (rawUrl) {
-        this.store.data._gistPublicUrl = rawUrl;
-        this.store.save();
-      }
-      const self = this;
-      const origSave = this.store._origSave;
-      this.store.save = function() { origSave(); self.gistSync(); };
+
+      const stableUrl = this._getGistRawUrl(gist.id);
+      this.store.data._gistPublicUrl = stableUrl;
+      this._gistPublicUrl = stableUrl;
+      // Direct localStorage write, bypass onSave (avoid redundant gistSync)
+      try { localStorage.setItem(this.store.key, JSON.stringify(this.store.data)); } catch(e) {}
+
       this.closeModal(); this.toast('✅ 公开 Gist 已创建，数据将自动同步给所有访问者');
       setTimeout(()=>this.showBackupModal(), 500);
     }).catch(e=>{ this.toast('❌ '+e.message); });
   },
 
   gistCreatePublic() {
-    // Force-create a new public gist (skips existing gist check)
     const tok = this._gistToken;
     if (!tok) { this.toast('❌ 未连接到 Gist，请先连接'); return; }
+    this.toast('🆕 正在创建新的公开 Gist...');
     fetch('https://api.github.com/gists', {
       method: 'POST',
       headers: {'Authorization': 'Bearer '+tok, 'Content-Type':'application/json', 'Accept': 'application/vnd.github+json'},
       body: JSON.stringify({
-        description: 'Portfolio Public Data ' + Date.now(), public: true,
+        description: 'Portfolio Public Data '+Date.now(), public: true,
         files: {'portfolio-data.json': {content: JSON.stringify(this.store.data, null, 2)}}
       }),
     }).then(r=>{ if (!r.ok) throw new Error('创建失败'); return r.json(); }).then(gist=>{
       this._gistId = gist.id;
       localStorage.setItem('portfolio_gist_id', gist.id);
-      const rawUrl = _cleanUrl(gist.files?.['portfolio-data.json']?.raw_url || '');
-      if (rawUrl) {
-        this.store.data._gistPublicUrl = rawUrl;
-        this._gistPublicUrl = rawUrl;
-        this.store.save();
-      }
-      // Patch save to auto-sync to this public gist
-      const self = this;
-      const origSave = this.store._origSave;
-      this.store.save = function() { origSave(); self.gistSync(); };
-      // Push data immediately
-      this.gistSync();
-      this.closeModal();
-      this.toast('✅ 公开 Gist 已创建！以后修改自动同步到此公开 Gist');
+
+      const stableUrl = this._getGistRawUrl(gist.id);
+      this.store.data._gistPublicUrl = stableUrl;
+      this._gistPublicUrl = stableUrl;
+      // Direct localStorage write, bypass onSave
+      try { localStorage.setItem(this.store.key, JSON.stringify(this.store.data)); } catch(e) {}
+
+      this.closeModal(); this.toast('✅ 公开 Gist 已创建！');
       setTimeout(()=>this.showBackupModal(), 500);
     }).catch(e=>{ this.toast('❌ '+e.message); });
   },
@@ -1411,64 +1399,71 @@ const App = {
       if (!r.ok) throw new Error('Token 无效');
       return r.json();
     }).then(gists=>{
-      const currentUrl = this.store.data._gistPublicUrl || this.defaults._gistPublicUrl || '';
-      const urlMatch = currentUrl.match(/githubusercontent\.com\/[^/]+\/([a-f0-9]+)/);
-      if (urlMatch) {
-        const byUrl = gists.find(g => g.id === urlMatch[1]);
-        if (byUrl?.public) {
-          this._gistId = byUrl.id;
-          localStorage.setItem('portfolio_gist_id', byUrl.id);
-          const rawUrl = _cleanUrl(byUrl.files?.['portfolio-data.json']?.raw_url || '');
-          if (rawUrl) {
-            this.store.data._gistPublicUrl = rawUrl;
-            this._gistPublicUrl = rawUrl;
-            this.store.save();
-          }
-          const self = this;
-          const origSave = this.store._origSave;
-          this.store.save = function() { origSave(); self.gistSync(); };
-          this.gistSync().then(() => {
-            this.closeModal();
-            this.toast('✅ 已重新配对到公开 Gist，数据已同步');
-            setTimeout(()=>this.showBackupModal(), 500);
-          });
-          return;
-        }
+      const currentUrl = this.store.data._gistPublicUrl || '';
+      const currentId = currentUrl.match(/gist\.githubusercontent\.com\/(?:[^/]+\/)?([a-f0-9]+)\//)?.[1];
+      if (currentId) {
+        const byUrl = gists.find(g => g.id === currentId);
+        if (byUrl?.public) return this._gistUseExisting(byUrl, tok);
       }
+      const byDesc = gists.find(g => g.description === 'Portfolio Auto Backup' && g.public);
+      if (byDesc) return this._gistUseExisting(byDesc, tok);
       this.toast('❌ 未找到匹配的公开 Gist，请尝试"创建公开 Gist"');
     }).catch(e=>{ this.toast('❌ '+e.message); });
   },
 
   gistSync() {
-    if (!this._gistConnected || !this._gistId || !this._gistToken) return Promise.resolve();
+    console.log('[gistSync] start, connected=', this._gistConnected, 'id=', this._gistId);
+    if (!this._gistConnected || !this._gistId || !this._gistToken) {
+      console.log('[gistSync] skipped: not connected');
+      return Promise.resolve();
+    }
     var self = this;
     var body = JSON.stringify(this.store.data, null, 2);
     var h = {'Authorization': 'Bearer '+this._gistToken, 'Content-Type':'application/json', 'Accept': 'application/vnd.github+json'};
-    // Sync to current gist
+
+    console.log('[gistSync] PATCH to gist', this._gistId);
     var main = fetch('https://api.github.com/gists/'+this._gistId, {
       method: 'PATCH', headers: h,
       body: JSON.stringify({files: {'portfolio-data.json': {content: body}}}),
-    }).then(function(r){ if (!r.ok) throw new Error('同步失败 HTTP '+r.status);
+    }).then(function(r){
+      console.log('[gistSync] response status', r.status);
+      if (!r.ok) throw new Error('同步失败 HTTP '+r.status);
+      return r.json();
+    }).then(function(gist){
       var now = new Date().toLocaleString();
       self._gistLastSync = now;
       localStorage.setItem('portfolio_gist_sync', now);
-      console.log('gistSync: OK', now);
-    }).catch(function(e){ console.warn('gistSync:', e); self.toast('❌ Gist 同步失败: '+e.message); });
-    // Also sync to defaults public gist so phones using the baked-in URL
-    // always get fresh data and discover the current gist URL.
-    var defUrl = this.defaults._gistPublicUrl;
-    var defId = defUrl ? (defUrl.match(/githubusercontent\.com\/[^/]+\/([a-f0-9]+)/)||[])[1] : null;
-    if (defId && defId !== this._gistId) {
-      var d = JSON.parse(body);
-      d._gistPublicUrl = this.store.data._gistPublicUrl || '';
-      fetch('https://api.github.com/gists/'+defId, {
-        method: 'PATCH', headers: h,
-        body: JSON.stringify({files: {'portfolio-data.json': {content: JSON.stringify(d)}}}),
-      }).then(function(r2){ if (!r2.ok) throw new Error('HTTP '+r2.status);
-        console.log('defaults-sync: OK');
-      }).catch(function(e){ console.warn('defaults-sync:', e); });
-    }
+      console.log('[gistSync] OK', now);
+      self.toast('☁️ 已同步到 Gist');
+      // Broadcast new URL to discovery gist
+      self._syncToDiscoveryGist(body, h);
+      return gist;
+    }).catch(function(e){
+      console.warn('[gistSync] error:', e);
+      self.toast('❌ Gist 同步失败: '+e.message);
+      throw e;
+    });
     return main;
+  },
+
+  _syncToDiscoveryGist(body, headers) {
+    var defUrl = this.defaults._gistPublicUrl;
+    if (!defUrl) return;
+    var m = defUrl.match(/gist\.githubusercontent\.com\/(?:[^/]+\/)?([a-f0-9]+)\//);
+    var defId = m ? m[1] : null;
+    if (!defId || defId === this._gistId) return;
+
+    var d = JSON.parse(body);
+    d._gistPublicUrl = this.store.data._gistPublicUrl || '';
+    fetch('https://api.github.com/gists/'+defId, {
+      method: 'PATCH', headers: headers,
+      body: JSON.stringify({files: {'portfolio-data.json': {content: JSON.stringify(d, null, 2)}}}),
+    }).then(function(r){
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      console.log('[discovery-sync] OK');
+    }).catch(function(e){
+      console.warn('[discovery-sync] failed:', e);
+    });
   },
 
   gistLoad() {
@@ -1488,55 +1483,45 @@ const App = {
   },
 
   gistLoadSilent() {
-    if (this._gistPublicUrl) {
-      // Load from public raw URL (no auth needed), fully bypass cache
-      var self = this;
-      fetch(this._gistPublicUrl, {cache: 'no-store'})
-        .then(function(r){ if (!r.ok) return null; return r.json(); })
-        .then(function(data){
-          if (!data || !data.profile || !data.works) return;
-          // Always sync if gist has more/equal items, or has a newer public URL
-          if ((data.works?.length||0) >= (self.store.data.works?.length||0) &&
-              (data.articles?.length||0) >= (self.store.data.articles?.length||0) &&
-              (data.gallery?.length||0) >= (self.store.data.gallery?.length||0)) {
-            self.store.d = data;
-            self.store.save();
-            self.render();
-            console.log('gistLoadSilent: data synced from', self._gistPublicUrl);
-          }
-        }).catch(function(e){ console.warn('gistPublicLoad:', e); });
+    const url = this._gistPublicUrl;
+    if (!url) {
+      console.log('[gistLoadSilent] no public url configured');
       return;
     }
-    if (!this._gistConnected || !this._gistId || !this._gistToken) return;
-    fetch('https://api.github.com/gists/'+this._gistId, {
-      headers: {'Authorization': 'Bearer '+this._gistToken, 'Accept': 'application/vnd.github+json'},
-    }).then(r=>{ if (!r.ok) return; return r.json(); }).then(gist=>{
-      if (!gist) return;
-      const content = gist.files?.['portfolio-data.json']?.content;
-      if (!content) return;
-      const data = JSON.parse(content);
-      if (!data.profile || !data.works) return;
-      if ((data.works?.length||0) >= (this.store.data.works?.length||0) &&
-          (data.articles?.length||0) >= (this.store.data.articles?.length||0) &&
-          (data.gallery?.length||0) >= (this.store.data.gallery?.length||0)) {
+    const fetchUrl = url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+    console.log('[gistLoadSilent] fetching', fetchUrl);
+    fetch(fetchUrl, { cache: 'no-store' })
+      .then(r => {
+        console.log('[gistLoadSilent] response', r.status);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(data => {
+        if (!data || !data.profile || !Array.isArray(data.works)) {
+          console.log('[gistLoadSilent] invalid data structure');
+          return;
+        }
+        console.log('[gistLoadSilent] valid data received, merging...');
         this.store.d = data;
-        this.store.save();
+        try { localStorage.setItem(this.store.key, JSON.stringify(data)); } catch (e) { console.warn('gistLoadSilent localStorage error:', e); }
         this.render();
-      }
-    }).catch(e=>{ console.warn('gistLoadSilent:', e); });
+        console.log('[gistLoadSilent] merged and rendered');
+      })
+      .catch(e => { console.warn('[gistLoadSilent] error:', e); });
   },
 
   gistDisconnect() {
     if (!confirm('断开 Gist 同步连接？数据不会丢失，访客仍可读取最后一次同步的数据。')) return;
-    this._gistConnected = false; this._gistId = ''; this._gistToken = ''; this._gistLastSync = '';
+    this._gistConnected = false;
+    this._gistId = '';
+    this._gistToken = '';
+    this._gistLastSync = '';
     localStorage.removeItem('portfolio_gist_id');
     localStorage.removeItem('portfolio_gist_token');
     localStorage.removeItem('portfolio_gist_sync');
-    // Keep _gistPublicUrl so visitors can still load the last synced data
-    // Restore original save
-    this.store.save = this.store._origSave;
-    this.closeModal(); this.toast('已断开 Gist 同步（公开数据源保留）');
-    setTimeout(()=>this.showBackupModal(), 500);
+    this.closeModal();
+    this.toast('已断开 Gist 同步（公开数据源保留）');
+    setTimeout(() => this.showBackupModal(), 500);
   },
 
   // ===== BACKUP & RESTORE =====
@@ -1690,11 +1675,38 @@ const App = {
 
 // ===== STORE =====
 class Store {
-  constructor(key,defs){this.key=key;this.defs=defs;this.d=this._load();this._origSave=this.save.bind(this);}
-  get data(){return this.d;}
-  _load(){try{const r=localStorage.getItem(this.key);if(!r)return JSON.parse(JSON.stringify(this.defs));return this._m(JSON.parse(JSON.stringify(this.defs)),JSON.parse(r));}catch{return JSON.parse(JSON.stringify(this.defs));}}
-  save(){try{localStorage.setItem(this.key,JSON.stringify(this.d));}catch(e){console.warn(e);}}
-  _m(t,s){const r={...t};for(const k of Object.keys(s)){if(r[k]&&typeof r[k]==='object'&&!Array.isArray(r[k])&&r[k]!==null)r[k]=this._m(r[k],s[k]);else r[k]=s[k];}return r;}
+  constructor(key, defs, onSave) {
+    this.key = key;
+    this.defs = defs;
+    this.onSave = onSave || null;
+    this.d = this._load();
+  }
+  get data() { return this.d; }
+  _load() {
+    try {
+      const r = localStorage.getItem(this.key);
+      if (!r) return JSON.parse(JSON.stringify(this.defs));
+      return this._m(JSON.parse(JSON.stringify(this.defs)), JSON.parse(r));
+    } catch {
+      return JSON.parse(JSON.stringify(this.defs));
+    }
+  }
+  save() {
+    try { localStorage.setItem(this.key, JSON.stringify(this.d)); } catch (e) { console.warn('Store.save error:', e); }
+    if (typeof this.onSave === 'function') {
+      try { this.onSave(); } catch (e) { console.warn('Store.onSave error:', e); }
+    }
+  }
+  _m(t, s) {
+    const r = { ...t };
+    for (const k of Object.keys(s)) {
+      if (r[k] && typeof r[k] === 'object' && !Array.isArray(r[k]) && r[k] !== null)
+        r[k] = this._m(r[k], s[k]);
+      else
+        r[k] = s[k];
+    }
+    return r;
+  }
 }
 
 // ===== ANIMATION STYLES =====
