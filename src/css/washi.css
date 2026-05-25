@@ -239,8 +239,8 @@ body {
 .w-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  max-width: 700px;
+  gap: 14px;
+  max-width: 580px;
   margin: 0 auto;
 }
 @media (max-width: 640px) {
@@ -249,35 +249,35 @@ body {
 
 .w-card {
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 22px; box-shadow: var(--shadow); transition: all var(--tr);
+  padding: 16px; box-shadow: var(--shadow); transition: all var(--tr);
   position: relative;
 }
 .w-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: var(--gold); }
-.w-card-title { font-family: var(--serif); font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
-.w-card-date { font-size: 0.7rem; color: var(--t3); margin-bottom: 6px; font-weight: 500; letter-spacing: 0.3px; }
-.w-card-img { margin: -22px -22px 12px; border-radius: var(--radius) var(--radius) 0 0; overflow: hidden; cursor: zoom-in; }
+.w-card-title { font-family: var(--serif); font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+.w-card-date { font-size: 0.68rem; color: var(--t3); margin-bottom: 4px; font-weight: 500; letter-spacing: 0.3px; }
+.w-card-img { margin: -16px -16px 10px; border-radius: var(--radius) var(--radius) 0 0; overflow: hidden; cursor: zoom-in; }
 .w-card-img img { width: 100%; display: block; }
 .w-card-desc {
-  font-size: 0.83rem; color: var(--t2); line-height: 1.6; margin-bottom: 10px;
+  font-size: 0.8rem; color: var(--t2); line-height: 1.5; margin-bottom: 8px;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
   cursor: pointer; transition: all 0.3s ease;
 }
 .w-card-desc.expanded { -webkit-line-clamp: unset; display: block; }
-.w-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
-.w-tag { padding: 2px 9px; border-radius: 99px; font-size: 0.68rem; font-weight: 600; background: var(--tag-bg); color: var(--red); }
-.w-links { display: flex; flex-wrap: wrap; gap: 6px; border-top: 1px solid var(--b2); padding-top: 10px; }
-.w-link { padding: 3px 10px; border-radius: 99px; font-size: 0.72rem; font-weight: 500; border: 1px solid var(--border); color: var(--t2); text-decoration: none; transition: all var(--trf); }
+.w-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 8px; }
+.w-tag { padding: 2px 8px; border-radius: 99px; font-size: 0.65rem; font-weight: 600; background: var(--tag-bg); color: var(--red); }
+.w-links { display: flex; flex-wrap: wrap; gap: 5px; border-top: 1px solid var(--b2); padding-top: 8px; }
+.w-link { padding: 2px 8px; border-radius: 99px; font-size: 0.7rem; font-weight: 500; border: 1px solid var(--border); color: var(--t2); text-decoration: none; transition: all var(--trf); }
 .w-link:hover { border-color: var(--red); color: var(--red); }
 
 .w-card-acts {
-  position: absolute; top: 10px; right: 10px; display: flex; gap: 3px;
+  position: absolute; top: 8px; right: 8px; display: flex; gap: 3px;
   opacity: 0; transition: opacity var(--trf);
 }
 .edit-mode .w-card-acts { opacity: 1; }
 
 .w-card-btn {
-  width: 26px; height: 26px; border-radius: 50%; border: none;
-  background: var(--card); cursor: pointer; font-size: 0.65rem;
+  width: 24px; height: 24px; border-radius: 50%; border: none;
+  background: var(--card); cursor: pointer; font-size: 0.6rem;
   color: var(--t2); display: flex; align-items: center; justify-content: center;
   transition: all var(--trf); box-shadow: 0 2px 6px rgba(0,0,0,0.08);
 }
@@ -287,7 +287,7 @@ body {
 .w-add {
   border: 2px dashed var(--border); border-radius: var(--radius);
   display: flex; align-items: center; justify-content: center;
-  min-height: 100px; cursor: pointer; color: var(--t3);
+  min-height: 80px; cursor: pointer; color: var(--t3);
   font-size: 0.85rem; transition: all var(--trf);
 }
 .w-add:hover { border-color: var(--red); color: var(--red); }
@@ -510,6 +510,8 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 14px;
+  max-width: 740px;
+  margin: 0 auto;
 }
 .g-card.dragging { opacity: 0.35; }
 .g-card.drag-over { border-color: var(--red); box-shadow: 0 0 0 2px rgba(199,62,58,0.12), var(--shadow-lg); }
