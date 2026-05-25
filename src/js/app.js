@@ -1255,6 +1255,13 @@ const App = {
     localStorage.setItem('portfolio_gist_id', gist.id);
     localStorage.setItem('portfolio_gist_token', btoa(tok));
     this._gistConnected = true;
+    // Try to get public raw URL
+    const rawUrl = gist.files?.['portfolio-data.json']?.raw_url || '';
+    if (rawUrl) {
+      this.store.data._gistPublicUrl = rawUrl;
+      this._gistPublicUrl = rawUrl;
+      this.store.save();
+    }
     const self = this;
     const origSave = this.store.save.bind(this.store);
     this.store.save = function() { origSave(); self.gistSync(); };
@@ -1288,6 +1295,32 @@ const App = {
       const origSave = this.store.save.bind(this.store);
       this.store.save = function() { origSave(); self.gistSync(); };
       this.closeModal(); this.toast('✅ 公开 Gist 已创建，数据将自动同步给所有访问者');
+      setTimeout(()=>this.showBackupModal(), 500);
+    }).catch(e=>{ this.toast('❌ '+e.message); });
+  },
+
+  gistCreatePublic() {
+    // Force-create a new public gist (skips existing gist check)
+    const tok = this._gistToken;
+    if (!tok) { this.toast('❌ 未连接到 Gist，请先连接'); return; }
+    fetch('https://api.github.com/gists', {
+      method: 'POST',
+      headers: {'Authorization': 'Bearer '+tok, 'Content-Type':'application/json', 'Accept': 'application/vnd.github+json'},
+      body: JSON.stringify({
+        description: 'Portfolio Public Data ' + Date.now(), public: true,
+        files: {'portfolio-data.json': {content: JSON.stringify(this.store.data, null, 2)}}
+      }),
+    }).then(r=>{ if (!r.ok) throw new Error('创建失败'); return r.json(); }).then(gist=>{
+      this._gistId = gist.id;
+      localStorage.setItem('portfolio_gist_id', gist.id);
+      const rawUrl = gist.files?.['portfolio-data.json']?.raw_url || '';
+      if (rawUrl) {
+        this.store.data._gistPublicUrl = rawUrl;
+        this._gistPublicUrl = rawUrl;
+        this.store.save();
+      }
+      this.closeModal();
+      this.toast('✅ 公开 Gist 已创建！Raw URL 已保存');
       setTimeout(()=>this.showBackupModal(), 500);
     }).catch(e=>{ this.toast('❌ '+e.message); });
   },
@@ -1379,6 +1412,7 @@ const App = {
     const connected = this._gistConnected;
     let gistHtml;
     if (connected) {
+      const pubUrl = this.store.data._gistPublicUrl || '';
       gistHtml = `
         <div style="margin:14px 0;padding:12px;border-radius:8px;background:var(--alt);border:1px solid var(--b2)">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
@@ -1386,8 +1420,10 @@ const App = {
             <span style="font-size:0.85rem;font-weight:600">Gist 已连接</span>
           </div>
           ${this._gistLastSync?'<div style="font-size:0.72rem;color:var(--t3);margin-bottom:10px">上次同步: '+esc(this._gistLastSync)+'</div>':''}
+          ${pubUrl?`<div style="font-size:0.7rem;color:var(--t2);margin-bottom:8px;word-break:break-all;padding:6px;background:var(--card);border-radius:6px">🔗 ${esc(pubUrl)}</div>`:'<div style="font-size:0.72rem;color:var(--t3);margin-bottom:8px">ℹ️ 当前 Gist 非公开，访客无法读取</div>'}
           <button class="btn btn-sm btn-p" id="gistSyncBtn" style="width:100%;margin-bottom:4px">🔄 立即同步</button>
           <button class="btn btn-sm btn-s" id="gistLoadBtn" style="width:100%;margin-bottom:4px">📥 从 Gist 加载</button>
+          <button class="btn btn-sm" id="gistNewPublicBtn" style="width:100%;margin-bottom:4px;background:var(--gold);color:#fff">🆕 创建公开 Gist</button>
           <button class="btn btn-sm" id="gistDisBtn" style="width:100%;background:var(--tag-bg);color:var(--red)">🔌 断开连接</button>
         </div>
       `;
@@ -1440,6 +1476,7 @@ const App = {
         if (connected) {
           $('gistSyncBtn').onclick = () => { this.gistSync(); this.toast('🔄 同步中...'); };
           $('gistLoadBtn').onclick = () => this.gistLoad();
+          $('gistNewPublicBtn').onclick = () => this.gistCreatePublic();
           $('gistDisBtn').onclick = () => this.gistDisconnect();
         } else {
           $('gistConnBtn').onclick = () => this.gistConnect();
