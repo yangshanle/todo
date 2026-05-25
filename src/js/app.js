@@ -1275,7 +1275,7 @@ const App = {
       this._gistToken = tok ? atob(tok) : '';
       this._gistConnected = !!(this._gistId && this._gistToken);
       // Public gist URL — works for all visitors without login
-      this._gistPublicUrl = this.store.data._gistPublicUrl || '';
+      this._gistPublicUrl = this.store.data._gistPublicUrl || this.defaults._gistPublicUrl || '';
       if (this._gistConnected) {
         this._gistLastSync = localStorage.getItem('portfolio_gist_sync') || '';
         const self = this;
@@ -1297,9 +1297,23 @@ const App = {
       if (!r.ok) throw new Error('Token 无效或没有 gist 权限');
       return r.json();
     }).then(gists=>{
-      let gist = gists.find(g => g.description === 'Portfolio Auto Backup');
-      if (gist) return this._gistUseExisting(gist, tok);
-      else return this._gistCreateNew(tok);
+      // Priority 1: find gist matching current public URL
+      const currentUrl = this.store.data._gistPublicUrl || '';
+      const urlMatch = currentUrl.match(/githubusercontent\.com\/[^/]+\/([a-f0-9]+)/);
+      if (urlMatch) {
+        const byUrl = gists.find(g => g.id === urlMatch[1]);
+        if (byUrl?.public) return this._gistUseExisting(byUrl, tok);
+        if (byUrl && !byUrl.public) {
+          // Current public gist became private — create fresh one
+          this.toast('ℹ️ 现有 Gist 已变私有，正在创建新的公开 Gist...');
+          return this._gistCreateNew(tok);
+        }
+      }
+      // Priority 2: find by description
+      const byDesc = gists.find(g => g.description === 'Portfolio Auto Backup');
+      if (byDesc?.public) return this._gistUseExisting(byDesc, tok);
+      // Priority 3: create new public gist
+      return this._gistCreateNew(tok);
     }).catch(e=>{ this.toast('❌ '+e.message); });
   },
 
@@ -1452,19 +1466,15 @@ const App = {
   },
 
   gistDisconnect() {
-    if (!confirm('断开 Gist 同步连接？数据不会丢失。')) return;
+    if (!confirm('断开 Gist 同步连接？数据不会丢失，访客仍可读取最后一次同步的数据。')) return;
     this._gistConnected = false; this._gistId = ''; this._gistToken = ''; this._gistLastSync = '';
     localStorage.removeItem('portfolio_gist_id');
     localStorage.removeItem('portfolio_gist_token');
     localStorage.removeItem('portfolio_gist_sync');
-    if (this.store.data._gistPublicUrl) {
-      this.store.data._gistPublicUrl = '';
-      this._gistPublicUrl = '';
-      this.store.save();
-    }
+    // Keep _gistPublicUrl so visitors can still load the last synced data
     const self = this;
     this.store.save = function() { try{localStorage.setItem(self.store.key,JSON.stringify(self.store.d));}catch(e){console.warn(e);} };
-    this.closeModal(); this.toast('已断开 Gist 同步');
+    this.closeModal(); this.toast('已断开 Gist 同步（公开数据源保留）');
     setTimeout(()=>this.showBackupModal(), 500);
   },
 
