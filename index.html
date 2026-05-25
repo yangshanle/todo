@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portfolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="src/css/washi.css?v=7">
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <span class="logo">✦ folio</span>
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-page="home">🏠 Home</button>
+        <button class="tab" data-page="works">💼 Works</button>
+        <button class="tab" data-page="articles">📝 Articles</button>
+        <button class="tab" data-page="about">👤 About</button>
+        <button class="tab" data-page="gallery">🖼 Gallery</button>
+      </div>
+      <div class="nav-r">
+        <button id="editBtn" title="编辑模式">✎</button>
+        <button id="themeBtn" title="主题">🌙</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- === PAGES === -->
+  <div class="pages" id="pages">
+
+    <!-- HOME -->
+    <div class="page active" id="page-home">
+      <div class="page-inner home-wrap">
+        <div class="p-deco"></div>
+        <!-- Speech bubble -->
+        <div class="speech-bubble">
+          欢迎参观我的作品网页！
+          <div class="sb-tail"></div>
+        </div>
+        <div class="home-av" id="avDisplay">👤</div>
+        <h1 id="dispName">Your Name</h1>
+        <p class="home-sub" id="dispTitle">Designer / Developer</p>
+        <p class="home-bio" id="dispBio">Crafting digital experiences with code and creativity.</p>
+        <div class="home-soc" id="heroSoc"></div>
+        <div class="home-hint">↓ 滚动查看更多</div>
+
+        <!-- Preview section -->
+        <div class="home-preview" id="homePreview">
+          <div class="hp-section">
+            <h3 class="hp-title">精选作品</h3>
+            <div class="hp-works" id="hpWorks"></div>
+          </div>
+          <div class="hp-section">
+            <h3 class="hp-title">最新文章</h3>
+            <div class="hp-articles" id="hpArticles"></div>
+          </div>
+          <div class="hp-section">
+            <h3 class="hp-title">技能</h3>
+            <div class="hp-skills" id="hpSkills"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WORKS -->
+    <div class="page" id="page-works">
+      <div class="page-inner">
+        <div class="p-deco"></div>
+        <h2 class="pg-title">Works</h2>
+        <p class="pg-sub">精选项目</p>
+        <div class="search-bar"><input type="text" class="search-input" id="wSearch" placeholder="搜索作品..." autocomplete="off"></div>
+        <div class="w-grid" id="wGrid"></div>
+        <div class="empty-msg" id="wEmpty">暂无作品 ✎ 开启编辑添加</div>
+      </div>
+    </div>
+
+    <!-- ARTICLES -->
+    <div class="page" id="page-articles">
+      <div class="page-inner">
+        <div class="p-deco"></div>
+        <h2 class="pg-title">Articles</h2>
+        <p class="pg-sub">笔记与分享</p>
+        <div class="search-bar"><input type="text" class="search-input" id="aSearch" placeholder="搜索文章..." autocomplete="off"></div>
+        <div class="a-list" id="aList"></div>
+        <div class="empty-msg" id="aEmpty">暂无文章 ✎ 开启编辑添加</div>
+      </div>
+    </div>
+
+    <!-- ABOUT -->
+    <div class="page" id="page-about">
+      <div class="page-inner about-wrap">
+        <div class="p-deco"></div>
+        <div class="about-l">
+          <div class="about-av" id="avAbout">👤</div>
+        </div>
+        <div class="about-r">
+          <h2 class="pg-title">About</h2>
+          <p class="about-bio" id="aboutBio">写一段介绍吧。</p>
+          <!-- Stats -->
+          <div class="ab-stats" id="abStats"></div>
+          <!-- Timeline -->
+          <h4 class="ab-label">📅 经历</h4>
+          <div class="tl-wrap" id="tlWrap"></div>
+          <!-- Quotes -->
+          <h4 class="ab-label">💬 语录</h4>
+          <div class="about-quotes" id="aboutQuotes"></div>
+          <h4 class="ab-label">Skills</h4>
+          <div class="tags" id="skillsTags"></div>
+          <h4 class="ab-label">Contact</h4>
+          <div class="contacts" id="contactsList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GALLERY -->
+    <div class="page" id="page-gallery">
+      <div class="page-inner">
+        <div class="p-deco"></div>
+        <h2 class="pg-title">Gallery</h2>
+        <p class="pg-sub">影像存档</p>
+        <div class="g-grid" id="gGrid"></div>
+        <div class="empty-msg" id="gEmpty">暂无图片 ✎ 开启编辑添加</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FAB -->
+  <button class="fab" id="fab">+</button>
+  <div class="fab-m" id="fabM">
+    <button data-type="work">📦 添加作品</button>
+    <button data-type="article">📝 添加文章</button>
+    <button data-type="gallery">🖼 添加图片</button>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-c" id="toastC"></div>
+
+  <!-- Password modal (inline) -->
+  <div class="modal-overlay" id="pwModal" style="display:none">
+    <div class="modal-box" style="max-width:360px">
+      <div class="modal-h"><h3>🔒 输入密码</h3><button class="pw-close">✕</button></div>
+      <div class="modal-b">
+        <div class="fg"><label>密码</label><input type="password" id="pwInput" style="font-size:1.2rem;text-align:center;letter-spacing:4px"></div>
+        <p style="font-size:0.78rem;color:var(--t3);text-align:center">默认密码: admin</p>
+      </div>
+      <div class="modal-f" style="justify-content:center">
+        <button class="btn btn-p" id="pwConfirm">确认</button>
+        <button class="btn btn-s pw-close">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generic modal -->
+  <div class="modal-overlay" id="modal" style="display:none">
+    <div class="modal-box">
+      <div class="modal-h"><h3 id="modalTitle"></h3><button id="modalClose">✕</button></div>
+      <div class="modal-b" id="modalBody"></div>
+      <div class="modal-f" id="modalFoot"></div>
+    </div>
+  </div>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" style="display:none">
+    <button class="lightbox-close" onclick="App.hideLightbox()">✕</button>
+    <img class="lightbox-img" id="lightboxImg" src="" alt="">
+  </div>
+
+  <!-- Gallery Viewer -->
+  <div class="gv-overlay" id="galleryViewer" style="display:none">
+    <button class="gv-close" id="gvClose">✕</button>
+    <button class="gv-nav gv-prev" id="gvPrev">‹</button>
+    <button class="gv-nav gv-next" id="gvNext">›</button>
+    <div class="gv-img-wrap">
+      <img id="gvImg" src="" alt="">
+      <div class="gv-meta" id="gvMeta">
+        <div class="gv-meta-title" id="gvTitle"></div>
+        <div class="gv-meta-date" id="gvDate"></div>
+        <div class="gv-meta-desc" id="gvDesc"></div>
+        <div class="gv-meta-tags" id="gvTags"></div>
+        <div class="gv-meta-links" id="gvLinks"></div>
+      </div>
+    </div>
+    <div class="gv-counter" id="gvCounter"></div>
+  </div>
+
+  <script src="src/js/app.js?v=7"></script>
+</body>
+</html>
