@@ -698,10 +698,13 @@ body {
 
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
-  .nav { padding: 0 12px; height: 54px; }
+  .nav { padding: 0 8px; height: 54px; }
   body { padding-top: 54px; }
-  .tabs { gap: 0; }
-  .tab { padding: 5px 8px; font-size: 0.72rem; }
+  .nav-inner { gap: 6px; }
+  .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-shrink: 1; min-width: 0; gap: 0; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .nav-r { flex-shrink: 0; }
+  .tab { padding: 5px 6px; font-size: 0.7rem; }
   .logo { font-size: 1rem; }
   .page-inner { padding: 28px 14px 60px; }
   .home-wrap h1 { font-size: 2rem; }

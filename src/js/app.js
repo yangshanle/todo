@@ -1225,6 +1225,8 @@ const App = {
         const self = this;
         const origSave = this.store.save.bind(this.store);
         this.store.save = function() { origSave(); self.gistSync(); };
+        // Auto-load latest data from Gist on page init
+        this.gistLoadSilent();
       }
     } catch(e) { console.warn('gistInit:', e); }
   },
@@ -1307,6 +1309,27 @@ const App = {
       this.store.d = data; this.store.save(); this.render();
       this.closeModal(); this.toast('✅ 数据已从 Gist 恢复');
     }).catch(e=>{ this.toast('❌ '+e.message); });
+  },
+
+  gistLoadSilent() {
+    if (!this._gistConnected || !this._gistId || !this._gistToken) return;
+    fetch('https://api.github.com/gists/'+this._gistId, {
+      headers: {'Authorization': 'Bearer '+this._gistToken, 'Accept': 'application/vnd.github+json'},
+    }).then(r=>{ if (!r.ok) return; return r.json(); }).then(gist=>{
+      if (!gist) return;
+      const content = gist.files?.['portfolio-data.json']?.content;
+      if (!content) return;
+      const data = JSON.parse(content);
+      if (!data.profile || !data.works) return;
+      // Only merge if Gist data is newer (has more works or articles)
+      if ((data.works?.length||0) >= (this.store.data.works?.length||0) &&
+          (data.articles?.length||0) >= (this.store.data.articles?.length||0) &&
+          (data.gallery?.length||0) >= (this.store.data.gallery?.length||0)) {
+        this.store.d = data;
+        this.store.save();
+        this.render();
+      }
+    }).catch(e=>{ console.warn('gistLoadSilent:', e); });
   },
 
   gistDisconnect() {
