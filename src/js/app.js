@@ -18,10 +18,9 @@ const App = {
   searchArticles: '',
   _gvList: [],
   _gvIdx: 0,
-  _gistConnected: false,
-  _gistId: '',
-  _gistToken: '',
-  _gistLastSync: '',
+  _syncConnected: false,
+  _syncToken: '',
+  _syncLastSync: '',
   genId: () => 'i_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
 
   defaults: {
@@ -57,13 +56,12 @@ const App = {
       '设计不是让它看起来怎么样，而是让它用起来怎么样。',
       'Bug 不是程序的错误，是程序在跟你开玩笑。',
     ],
-    _gistPublicUrl: 'https://gist.githubusercontent.com/yangshanle/8e9764f2303bbc19564d57d301848096/raw/portfolio-data.json',
   },
 
   init() {
     try {
       this.store = new Store('portfolio_data', this.defaults, () => {
-        if (this._gistConnected) this.gistSync();
+        if (this._syncConnected) this._saveToRepo();
       });
       // Migrate skills from profile to global
       const d = this.store.data;
@@ -77,7 +75,7 @@ const App = {
       this.switchPage('home');
       this.initScrollEffects();
       this.generatePageDecorations();
-      this.gistInit();
+      this._initSync();
     } catch(e) { console.error('init error:', e); }
     // Easter eggs
     this._initEasterEggs();
@@ -1268,290 +1266,132 @@ const App = {
 
   closeModal() { $('modal').style.display='none'; $('modal').querySelector('.modal-box').classList.remove('modal-wide'); },
 
-  // ===== GITHUB GIST SYNC =====
-  _getGistRawUrl(gistId) {
-    return 'https://gist.githubusercontent.com/'+gistId+'/raw/portfolio-data.json';
+  // ===== GITHUB REPO SYNC =====
+  _initSync() {
+    const tok = localStorage.getItem('portfolio_sync_token');
+    this._syncToken = tok ? atob(tok) : '';
+    this._syncConnected = !!this._syncToken;
+    this._syncLastSync = localStorage.getItem('portfolio_sync_stamp') || '';
+    // Load from repo silently (for visitors)
+    this._loadFromRepo();
   },
 
-  gistInit() {
-    try {
-      const tid = localStorage.getItem('portfolio_gist_id');
-      const tok = localStorage.getItem('portfolio_gist_token');
-      this._gistId = tid || '';
-      this._gistToken = tok ? atob(tok) : '';
-      this._gistConnected = !!(this._gistId && this._gistToken);
-      this._gistPublicUrl = this.store.data._gistPublicUrl || this.defaults._gistPublicUrl || '';
-      this._gistLastSync = localStorage.getItem('portfolio_gist_sync') || '';
-      if (this._gistPublicUrl || this._gistConnected) {
-        this.gistLoadSilent();
-      }
-    } catch(e) { console.warn('gistInit:', e); }
-  },
-
-  gistConnect() {
-    const tok = $('gistTokenInput')?.value?.trim();
-    if (!tok) { this.toast('请输入 Personal Access Token'); return; }
-    fetch('https://api.github.com/gists', {
-      headers: {'Authorization': 'Bearer '+tok, 'Accept': 'application/vnd.github+json'},
-    }).then(r=>{
-      if (!r.ok) throw new Error('Token 无效或没有 gist 权限');
-      return r.json();
-    }).then(gists=>{
-      // Priority 1: gist matching current public URL
-      const currentUrl = this.store.data._gistPublicUrl || '';
-      const currentId = currentUrl.match(/gist\.githubusercontent\.com\/(?:[^/]+\/)?([a-f0-9]+)\//)?.[1];
-      if (currentId) {
-        const byUrl = gists.find(g => g.id === currentId);
-        if (byUrl?.public) return this._gistUseExisting(byUrl, tok);
-        if (byUrl && !byUrl.public) {
-          this.toast('ℹ️ 现有 Gist 已变私有，创建新的公开 Gist...');
-          return this._gistCreateNew(tok);
-        }
-      }
-      // Priority 2: by description
-      const byDesc = gists.find(g => g.description === 'Portfolio Auto Backup' && g.public);
-      if (byDesc) return this._gistUseExisting(byDesc, tok);
-      // Priority 3: create new
-      return this._gistCreateNew(tok);
-    }).catch(e=>{ this.toast('❌ '+e.message); });
-  },
-
-  _gistUseExisting(gist, tok) {
-    this._gistId = gist.id;
-    this._gistToken = tok;
-    localStorage.setItem('portfolio_gist_id', gist.id);
-    localStorage.setItem('portfolio_gist_token', btoa(tok));
-    this._gistConnected = true;
-
-    const stableUrl = this._getGistRawUrl(gist.id);
-    if (gist.public) {
-      this.store.data._gistPublicUrl = stableUrl;
-      this._gistPublicUrl = stableUrl;
-      // Direct localStorage write, bypass onSave (avoid redundant gistSync)
-      try { localStorage.setItem(this.store.key, JSON.stringify(this.store.data)); } catch(e) {}
-    }
-
-    return this.gistSync().then(() => {
-      this.closeModal(); this.toast('✅ 已连接到 Gist 自动同步');
-      setTimeout(()=>this.showBackupModal(), 500);
-    }).catch(e=>{ this.toast('❌ 同步失败: '+e.message); });
-  },
-
-  _gistCreateNew(tok) {
-    this._gistToken = tok;
-    return fetch('https://api.github.com/gists', {
-      method: 'POST',
-      headers: {'Authorization': 'Bearer '+tok, 'Content-Type':'application/json', 'Accept': 'application/vnd.github+json'},
-      body: JSON.stringify({
-        description: 'Portfolio Auto Backup', public: true,
-        files: {'portfolio-data.json': {content: JSON.stringify(this.store.data, null, 2)}}
-      }),
-    }).then(r=>{ if (!r.ok) throw new Error('创建 Gist 失败'); return r.json(); }).then(gist=>{
-      this._gistId = gist.id;
-      localStorage.setItem('portfolio_gist_id', gist.id);
-      localStorage.setItem('portfolio_gist_token', btoa(tok));
-      this._gistConnected = true;
-
-      const stableUrl = this._getGistRawUrl(gist.id);
-      this.store.data._gistPublicUrl = stableUrl;
-      this._gistPublicUrl = stableUrl;
-      // Direct localStorage write, bypass onSave (avoid redundant gistSync)
-      try { localStorage.setItem(this.store.key, JSON.stringify(this.store.data)); } catch(e) {}
-
-      this.closeModal(); this.toast('✅ 公开 Gist 已创建，数据将自动同步给所有访问者');
-      setTimeout(()=>this.showBackupModal(), 500);
-    }).catch(e=>{ this.toast('❌ '+e.message); });
-  },
-
-  gistCreatePublic() {
-    const tok = this._gistToken;
-    if (!tok) { this.toast('❌ 未连接到 Gist，请先连接'); return; }
-    this.toast('🆕 正在创建新的公开 Gist...');
-    fetch('https://api.github.com/gists', {
-      method: 'POST',
-      headers: {'Authorization': 'Bearer '+tok, 'Content-Type':'application/json', 'Accept': 'application/vnd.github+json'},
-      body: JSON.stringify({
-        description: 'Portfolio Public Data '+Date.now(), public: true,
-        files: {'portfolio-data.json': {content: JSON.stringify(this.store.data, null, 2)}}
-      }),
-    }).then(r=>{ if (!r.ok) throw new Error('创建失败'); return r.json(); }).then(gist=>{
-      this._gistId = gist.id;
-      localStorage.setItem('portfolio_gist_id', gist.id);
-
-      const stableUrl = this._getGistRawUrl(gist.id);
-      this.store.data._gistPublicUrl = stableUrl;
-      this._gistPublicUrl = stableUrl;
-      // Direct localStorage write, bypass onSave
-      try { localStorage.setItem(this.store.key, JSON.stringify(this.store.data)); } catch(e) {}
-
-      this.closeModal(); this.toast('✅ 公开 Gist 已创建！');
-      setTimeout(()=>this.showBackupModal(), 500);
-    }).catch(e=>{ this.toast('❌ '+e.message); });
-  },
-
-  gistRepair() {
-    const tok = this._gistToken;
-    if (!tok) { this.toast('❌ 没有已保存的 Token，请断开后重新连接'); return; }
-    this.toast('🔄 正在重新配对 Gist...');
-    fetch('https://api.github.com/gists', {
-      headers: {'Authorization': 'Bearer '+tok, 'Accept': 'application/vnd.github+json'},
-    }).then(r=>{
-      if (!r.ok) throw new Error('Token 无效');
-      return r.json();
-    }).then(gists=>{
-      const currentUrl = this.store.data._gistPublicUrl || '';
-      const currentId = currentUrl.match(/gist\.githubusercontent\.com\/(?:[^/]+\/)?([a-f0-9]+)\//)?.[1];
-      if (currentId) {
-        const byUrl = gists.find(g => g.id === currentId);
-        if (byUrl?.public) return this._gistUseExisting(byUrl, tok);
-      }
-      const byDesc = gists.find(g => g.description === 'Portfolio Auto Backup' && g.public);
-      if (byDesc) return this._gistUseExisting(byDesc, tok);
-      this.toast('❌ 未找到匹配的公开 Gist，请尝试"创建公开 Gist"');
-    }).catch(e=>{ this.toast('❌ '+e.message); });
-  },
-
-  gistSync() {
-    console.log('[gistSync] start, connected=', this._gistConnected, 'id=', this._gistId);
-    if (!this._gistConnected || !this._gistId || !this._gistToken) {
-      console.log('[gistSync] skipped: not connected');
-      return Promise.resolve();
-    }
-    var self = this;
-    var body = JSON.stringify(this.store.data, null, 2);
-    var h = {'Authorization': 'Bearer '+this._gistToken, 'Content-Type':'application/json', 'Accept': 'application/vnd.github+json'};
-
-    console.log('[gistSync] PATCH to gist', this._gistId);
-    var main = fetch('https://api.github.com/gists/'+this._gistId, {
-      method: 'PATCH', headers: h,
-      body: JSON.stringify({files: {'portfolio-data.json': {content: body}}}),
-    }).then(function(r){
-      console.log('[gistSync] response status', r.status);
-      if (!r.ok) throw new Error('同步失败 HTTP '+r.status);
-      return r.json();
-    }).then(function(gist){
-      var now = new Date().toLocaleString();
-      self._gistLastSync = now;
-      localStorage.setItem('portfolio_gist_sync', now);
-      console.log('[gistSync] OK', now);
-      self.toast('☁️ 已同步到 Gist');
-      // Broadcast new URL to discovery gist
-      self._syncToDiscoveryGist(body, h);
-      return gist;
-    }).catch(function(e){
-      console.warn('[gistSync] error:', e);
-      self.toast('❌ Gist 同步失败: '+e.message);
-      throw e;
-    });
-    return main;
-  },
-
-  _syncToDiscoveryGist(body, headers) {
-    var defUrl = this.defaults._gistPublicUrl;
-    if (!defUrl) return;
-    var m = defUrl.match(/gist\.githubusercontent\.com\/(?:[^/]+\/)?([a-f0-9]+)\//);
-    var defId = m ? m[1] : null;
-    if (!defId || defId === this._gistId) return;
-
-    var d = JSON.parse(body);
-    d._gistPublicUrl = this.store.data._gistPublicUrl || '';
-    fetch('https://api.github.com/gists/'+defId, {
-      method: 'PATCH', headers: headers,
-      body: JSON.stringify({files: {'portfolio-data.json': {content: JSON.stringify(d, null, 2)}}}),
-    }).then(function(r){
-      if (!r.ok) throw new Error('HTTP '+r.status);
-      console.log('[discovery-sync] OK');
-    }).catch(function(e){
-      console.warn('[discovery-sync] failed:', e);
-    });
-  },
-
-  gistLoad() {
-    if (!this._gistConnected || !this._gistId || !this._gistToken) return;
-    const gistId = this._gistId;
-    fetch('https://api.github.com/gists/'+gistId, {
-      headers: {'Authorization': 'Bearer '+this._gistToken, 'Accept': 'application/vnd.github+json'},
-    }).then(r=>{ if (!r.ok) throw new Error('获取 Gist 失败'); return r.json(); }).then(gist=>{
-      const content = gist.files?.['portfolio-data.json']?.content;
-      if (!content) { this.toast('❌ Gist 中没有数据'); return; }
-      const data = JSON.parse(content);
-      if (!data.profile) { this.toast('❌ 无效的数据'); return; }
-      if (!confirm('从 Gist 加载数据将覆盖当前内容，确认继续？')) return;
-      this.store.d = data; this.store.save(); this.render();
-      this.closeModal(); this.toast('✅ 数据已从 Gist 恢复');
-    }).catch(e=>{ this.toast('❌ '+e.message); });
-  },
-
-  gistLoadSilent() {
-    const url = this._gistPublicUrl;
-    if (!url) {
-      console.log('[gistLoadSilent] no public url configured');
+  _saveToRepo() {
+    if (!this._syncConnected || !this._syncToken) {
+      console.log('[sync] not connected, skipping');
       return;
     }
-    const fetchUrl = url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now();
-    console.log('[gistLoadSilent] fetching', fetchUrl);
-    fetch(fetchUrl, { cache: 'no-store' })
-      .then(r => {
-        console.log('[gistLoadSilent] response', r.status);
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
-      .then(data => {
-        if (!data || !data.profile || !Array.isArray(data.works)) {
-          console.log('[gistLoadSilent] invalid data structure');
-          return;
-        }
-        console.log('[gistLoadSilent] valid data received, merging...');
-        this.store.d = data;
-        try { localStorage.setItem(this.store.key, JSON.stringify(data)); } catch (e) { console.warn('gistLoadSilent localStorage error:', e); }
-        this.render();
-        console.log('[gistLoadSilent] merged and rendered');
-      })
-      .catch(e => { console.warn('[gistLoadSilent] error:', e); });
+    console.log('[sync] saving to repo...');
+    const json = JSON.stringify(this.store.data, null, 2);
+    const bytes = new TextEncoder().encode(json);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const content = btoa(binary);
+    const url = 'https://api.github.com/repos/yangshanle/todo/contents/data.json';
+    const headers = {
+      'Authorization': 'Bearer ' + this._syncToken,
+      'Content-Type': 'application/json',
+      'Accept': 'application/vnd.github+json',
+    };
+    fetch(url + '?ref=gh-pages', { headers })
+    .then(r => r.ok ? r.json() : null)
+    .then(file => {
+      const body = {
+        message: 'sync portfolio data',
+        content: content,
+        branch: 'gh-pages'
+      };
+      if (file && file.sha) body.sha = file.sha;
+      return fetch(url, { method: 'PUT', headers, body: JSON.stringify(body) });
+    })
+    .then(r => {
+      if (r.ok) {
+        const now = new Date().toLocaleString();
+        this._syncLastSync = now;
+        localStorage.setItem('portfolio_sync_stamp', now);
+        console.log('[sync] OK', now);
+      } else {
+        console.warn('[sync] failed:', r.status);
+      }
+    })
+    .catch(e => console.warn('[sync] error:', e));
   },
 
-  gistDisconnect() {
-    if (!confirm('断开 Gist 同步连接？数据不会丢失，访客仍可读取最后一次同步的数据。')) return;
-    this._gistConnected = false;
-    this._gistId = '';
-    this._gistToken = '';
-    this._gistLastSync = '';
-    localStorage.removeItem('portfolio_gist_id');
-    localStorage.removeItem('portfolio_gist_token');
-    localStorage.removeItem('portfolio_gist_sync');
+  _loadFromRepo() {
+    fetch('./data.json?_cb=' + Date.now(), { cache: 'no-store' })
+    .then(r => {
+      if (!r.ok) { console.log('[sync] no data.json yet'); return null; }
+      return r.json();
+    })
+    .then(data => {
+      if (!data || !data.profile) {
+        console.log('[sync] invalid data or not available');
+        return;
+      }
+      console.log('[sync] loaded data from repo');
+      this.store.d = data;
+      try { localStorage.setItem(this.store.key, JSON.stringify(data)); } catch(e) { console.warn('[sync] localStorage error', e); }
+      this.render();
+      console.log('[sync] merged and rendered');
+    })
+    .catch(e => console.warn('[sync] load error:', e));
+  },
+
+  _connectSync() {
+    const tok = prompt('输入 GitHub Personal Access Token\n（需要 public_repo 权限，用于提交 data.json 到 gh-pages）');
+    if (!tok) return;
+    this.toast('🔄 验证中...');
+    fetch('https://api.github.com/repos/yangshanle/todo', {
+      headers: {'Authorization': 'Bearer ' + tok, 'Accept': 'application/vnd.github+json'}
+    })
+    .then(r => {
+      if (!r.ok) throw new Error('Token 无效');
+      this._syncToken = tok;
+      this._syncConnected = true;
+      localStorage.setItem('portfolio_sync_token', btoa(tok));
+      this.toast('✅ 已连接');
+      this.closeModal();
+      this._saveToRepo();
+      setTimeout(() => this.showBackupModal(), 800);
+    })
+    .catch(e => { this.toast('❌ ' + e.message); });
+  },
+
+  _disconnectSync() {
+    if (!confirm('断开同步连接？数据不会丢失。')) return;
+    this._syncConnected = false;
+    this._syncToken = '';
+    this._syncLastSync = '';
+    localStorage.removeItem('portfolio_sync_token');
+    localStorage.removeItem('portfolio_sync_stamp');
     this.closeModal();
-    this.toast('已断开 Gist 同步（公开数据源保留）');
+    this.toast('已断开同步');
     setTimeout(() => this.showBackupModal(), 500);
   },
 
   // ===== BACKUP & RESTORE =====
   showBackupModal() {
-    const connected = this._gistConnected;
-    let gistHtml;
+    const connected = this._syncConnected;
+    let syncHtml;
     if (connected) {
-      const pubUrl = this.store.data._gistPublicUrl || '';
-      gistHtml = `
+      syncHtml = `
         <div style="margin:14px 0;padding:12px;border-radius:8px;background:var(--alt);border:1px solid var(--b2)">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
             <span style="color:#4CAF50">✅</span>
-            <span style="font-size:0.85rem;font-weight:600">Gist 已连接</span>
+            <span style="font-size:0.85rem;font-weight:600">同步已连接</span>
           </div>
-          ${this._gistLastSync?'<div style="font-size:0.72rem;color:var(--t3);margin-bottom:10px">上次同步: '+esc(this._gistLastSync)+'</div>':''}
-          ${pubUrl?`<div style="font-size:0.7rem;color:var(--t2);margin-bottom:8px;word-break:break-all;padding:6px;background:var(--card);border-radius:6px">🔗 ${esc(pubUrl)}</div>`:'<div style="font-size:0.72rem;color:var(--t3);margin-bottom:8px">ℹ️ 当前 Gist 非公开，访客无法读取</div>'}
-          <button class="btn btn-sm btn-p" id="gistSyncBtn" style="width:100%;margin-bottom:4px">🔄 立即同步</button>
-          <button class="btn btn-sm btn-s" id="gistLoadBtn" style="width:100%;margin-bottom:4px">📥 从 Gist 加载</button>
-          <button class="btn btn-sm" id="gistRepairBtn" style="width:100%;margin-bottom:4px;background:var(--link);color:#fff">🔧 修复同步（重新配对到公开 Gist）</button>
-          <button class="btn btn-sm" id="gistNewPublicBtn" style="width:100%;margin-bottom:4px;background:var(--gold);color:#fff">🆕 创建公开 Gist</button>
-          <button class="btn btn-sm" id="gistDisBtn" style="width:100%;background:var(--tag-bg);color:var(--red)">🔌 断开连接</button>
+          ${this._syncLastSync?'<div style="font-size:0.72rem;color:var(--t3);margin-bottom:10px">上次同步: '+esc(this._syncLastSync)+'</div>':''}
+          <button class="btn btn-sm btn-p" id="syncNowBtn" style="width:100%;margin-bottom:4px">🔄 立即同步</button>
+          <button class="btn btn-sm" id="syncDisBtn" style="width:100%;background:var(--tag-bg);color:var(--red)">🔌 断开连接</button>
         </div>
       `;
     } else {
-      gistHtml = `
+      syncHtml = `
         <div style="margin:14px 0;padding:12px;border-radius:8px;background:var(--alt);border:1px solid var(--b2)">
-          <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px">☁️ GitHub 自动同步</div>
-          <p style="font-size:0.75rem;color:var(--t3);margin-bottom:8px;line-height:1.5">开启后每次修改自动备份到 GitHub Gist。<br>需要 <a href="https://github.com/settings/tokens/new?scopes=gist&description=Portfolio+Backup" target="_blank" style="color:var(--red)">创建 Token</a>（勾选 gist 权限）</p>
-          <input id="gistTokenInput" type="password" placeholder="粘贴 Personal Access Token" style="width:100%;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:0.82rem;outline:none;margin-bottom:6px">
-          <button class="btn btn-sm btn-p" id="gistConnBtn" style="width:100%">🔗 连接</button>
+          <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px">☁️ GitHub Pages 自动同步</div>
+          <p style="font-size:0.75rem;color:var(--t3);margin-bottom:8px;line-height:1.5">开启后每次修改自动提交 data.json 到 GitHub Pages。<br>需要 <a href="https://github.com/settings/tokens/new?scopes=public_repo&description=Portfolio+Sync" target="_blank" style="color:var(--red)">创建 Token</a>（勾选 public_repo）</p>
+          <input id="syncTokenInput" type="password" placeholder="粘贴 Personal Access Token" style="width:100%;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:0.82rem;outline:none;margin-bottom:6px">
+          <button class="btn btn-sm btn-p" id="syncConnBtn" style="width:100%">🔗 连接</button>
         </div>
       `;
     }
@@ -1562,15 +1402,7 @@ const App = {
         <button class="btn btn-p" id="exportBtn" style="width:100%;margin-bottom:8px">📥 导出数据（下载 JSON）</button>
         <button class="btn btn-s" id="importBtn" style="width:100%">📤 导入数据（恢复备份）</button>
         <input type="file" id="importFile" accept=".json" style="display:none">
-        ${gistHtml}
-        <div style="margin:14px 0;padding:12px;border-radius:8px;background:var(--alt);border:1px solid var(--b2)">
-          <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px">🌐 公开数据同步</div>
-          <p style="font-size:0.75rem;color:var(--t3);margin-bottom:8px;line-height:1.5">所有访问者自动从此地址加载数据，无需登录。<br>该地址由 Gist 连接自动管理，不会误删除。</p>
-          ${this.store.data._gistPublicUrl
-            ? `<div style="font-size:0.72rem;color:var(--t2);word-break:break-all;padding:8px;background:var(--card);border-radius:6px;border:1px solid var(--b2);font-family:monospace">${esc(this.store.data._gistPublicUrl)}</div><div style="font-size:0.7rem;color:var(--t3);margin-top:6px">✅ 已在代码中预设，所有访客自动读取</div>`
-            : `<div style="font-size:0.75rem;color:var(--t3);font-style:italic">连接公开 Gist 后自动生成</div>`
-          }
-        </div>
+        ${syncHtml}
         <p style="font-size:0.75rem;color:var(--t3);margin-top:10px">导入会覆盖当前所有数据，建议先导出备份。</p>
       `,
       footer: [{label:'关闭',cls:'btn-s'}],
@@ -1583,13 +1415,10 @@ const App = {
           this.importData(file);
         };
         if (connected) {
-          $('gistSyncBtn').onclick = () => { this.gistSync(); this.toast('🔄 同步中...'); };
-          $('gistLoadBtn').onclick = () => this.gistLoad();
-          $('gistNewPublicBtn').onclick = () => this.gistCreatePublic();
-          $('gistRepairBtn').onclick = () => this.gistRepair();
-          $('gistDisBtn').onclick = () => this.gistDisconnect();
+          $('syncNowBtn').onclick = () => { this._saveToRepo(); this.toast('🔄 同步中...'); };
+          $('syncDisBtn').onclick = () => this._disconnectSync();
         } else {
-          $('gistConnBtn').onclick = () => this.gistConnect();
+          $('syncConnBtn').onclick = () => this._connectSync();
         }
       },
     });
