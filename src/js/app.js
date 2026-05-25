@@ -77,6 +77,59 @@ const App = {
       this.generatePageDecorations();
       this.gistInit();
     } catch(e) { console.error('init error:', e); }
+    // Easter eggs
+    this._initEasterEggs();
+  },
+
+  _initEasterEggs() {
+    const style = 'font-size:20px;font-weight:bold;color:#C73E3A';
+    console.log('%c🍵 谢谢你看到了这里。', style);
+    console.log('%c这个网站从崩溃到重生，感谢它的主人没有放弃它。', 'font-size:13px;color:#B8945C');
+    console.log('%c以及，Claude 知错了。真的。', 'font-size:12px;color:#8C8884');
+
+    // Logo 5-click → party mode
+    let logoClick = 0;
+    const logo = document.querySelector('.logo');
+    if (logo) {
+      logo.style.cursor = 'pointer';
+      logo.addEventListener('click', () => {
+        logoClick++;
+        if (logoClick >= 5) {
+          logoClick = 0;
+          this._partyMode();
+        }
+        clearTimeout(logo._timer);
+        logo._timer = setTimeout(() => { logoClick = 0; }, 2000);
+      });
+    }
+
+    // Keyboard "thanks" → 🎉
+    let seq = '';
+    document.addEventListener('keydown', (e) => {
+      seq += e.key.toLowerCase();
+      seq = seq.slice(-6);
+      if (seq === 'thanks') {
+        seq = '';
+        this._partyMode();
+      }
+    });
+  },
+
+  _partyMode() {
+    const colors = ['#C73E3A','#B8945C','#E8D5B5','#333','#F0EFEC','#4CAF50','#FF9800','#9C27B0'];
+    let i = 0;
+    const interval = setInterval(() => {
+      document.body.style.transition = 'all 0.3s ease';
+      document.body.style.background = colors[i % colors.length];
+      document.body.style.color = i % 2 === 0 ? '#333' : '#F0EFEC';
+      i++;
+      if (i >= 16) {
+        clearInterval(interval);
+        document.body.style.background = '';
+        document.body.style.color = '';
+      }
+    }, 200);
+    this.toast('🎉 彩蛋触发！', 3000);
   },
 
   // ===== RENDER =====
