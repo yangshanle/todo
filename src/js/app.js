@@ -1440,15 +1440,30 @@ const App = {
 
   gistSync() {
     if (!this._gistConnected || !this._gistId || !this._gistToken) return Promise.resolve();
-    return fetch('https://api.github.com/gists/'+this._gistId, {
-      method: 'PATCH',
-      headers: {'Authorization': 'Bearer '+this._gistToken, 'Content-Type':'application/json', 'Accept': 'application/vnd.github+json'},
-      body: JSON.stringify({files: {'portfolio-data.json': {content: JSON.stringify(this.store.data, null, 2)}}}),
+    const body = JSON.stringify(this.store.data, null, 2);
+    const h = {'Authorization': 'Bearer '+this._gistToken, 'Content-Type':'application/json', 'Accept': 'application/vnd.github+json'};
+    // Sync to current gist
+    const main = fetch('https://api.github.com/gists/'+this._gistId, {
+      method: 'PATCH', headers: h,
+      body: JSON.stringify({files: {'portfolio-data.json': {content: body}}}),
     }).then(r=>{ if (!r.ok) throw new Error('sync failed');
       const now = new Date().toLocaleString();
       this._gistLastSync = now;
       localStorage.setItem('portfolio_gist_sync', now);
     }).catch(e=>{ console.warn('gistSync:', e); });
+    // Also sync to defaults public gist so phones using the baked-in URL
+    // always get fresh data and discover the current gist URL.
+    const defUrl = this.defaults._gistPublicUrl;
+    const defId = defUrl ? (defUrl.match(/githubusercontent\.com\/[^/]+\/([a-f0-9]+)/)||[])[1] : null;
+    if (defId && defId !== this._gistId) {
+      const d = JSON.parse(body);
+      d._gistPublicUrl = this.store.data._gistPublicUrl || '';
+      fetch('https://api.github.com/gists/'+defId, {
+        method: 'PATCH', headers: h,
+        body: JSON.stringify({files: {'portfolio-data.json': {content: JSON.stringify(d)}}}),
+      }).catch(function(){});
+    }
+    return main;
   },
 
   gistLoad() {
