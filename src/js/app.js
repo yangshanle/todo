@@ -57,6 +57,7 @@ const App = {
       '设计不是让它看起来怎么样，而是让它用起来怎么样。',
       'Bug 不是程序的错误，是程序在跟你开玩笑。',
     ],
+    _gistPublicUrl: '',
   },
 
   init() {
@@ -1220,12 +1221,15 @@ const App = {
       this._gistId = tid || '';
       this._gistToken = tok ? atob(tok) : '';
       this._gistConnected = !!(this._gistId && this._gistToken);
+      // Public gist URL — works for all visitors without login
+      this._gistPublicUrl = this.store.data._gistPublicUrl || '';
       if (this._gistConnected) {
         this._gistLastSync = localStorage.getItem('portfolio_gist_sync') || '';
         const self = this;
         const origSave = this.store.save.bind(this.store);
         this.store.save = function() { origSave(); self.gistSync(); };
-        // Auto-load latest data from Gist on page init
+      }
+      if (this._gistPublicUrl || this._gistConnected) {
         this.gistLoadSilent();
       }
     } catch(e) { console.warn('gistInit:', e); }
@@ -1266,7 +1270,7 @@ const App = {
       method: 'POST',
       headers: {'Authorization': 'Bearer '+tok, 'Content-Type':'application/json', 'Accept': 'application/vnd.github+json'},
       body: JSON.stringify({
-        description: 'Portfolio Auto Backup', public: false,
+        description: 'Portfolio Auto Backup', public: true,
         files: {'portfolio-data.json': {content: JSON.stringify(this.store.data, null, 2)}}
       }),
     }).then(r=>{ if (!r.ok) throw new Error('创建 Gist 失败'); return r.json(); }).then(gist=>{
@@ -1274,10 +1278,16 @@ const App = {
       localStorage.setItem('portfolio_gist_id', gist.id);
       localStorage.setItem('portfolio_gist_token', btoa(tok));
       this._gistConnected = true;
+      // Save public raw URL for all visitors
+      const rawUrl = gist.files?.['portfolio-data.json']?.raw_url || '';
+      if (rawUrl) {
+        this.store.data._gistPublicUrl = rawUrl;
+        this.store.save();
+      }
       const self = this;
       const origSave = this.store.save.bind(this.store);
       this.store.save = function() { origSave(); self.gistSync(); };
-      this.closeModal(); this.toast('✅ Gist 已创建，自动同步已开启');
+      this.closeModal(); this.toast('✅ 公开 Gist 已创建，数据将自动同步给所有访问者');
       setTimeout(()=>this.showBackupModal(), 500);
     }).catch(e=>{ this.toast('❌ '+e.message); });
   },
@@ -1312,6 +1322,22 @@ const App = {
   },
 
   gistLoadSilent() {
+    if (this._gistPublicUrl) {
+      // Load from public raw URL (no auth needed)
+      fetch(this._gistPublicUrl)
+        .then(r=>{ if (!r.ok) return null; return r.json(); })
+        .then(data=>{
+          if (!data || !data.profile || !data.works) return;
+          if ((data.works?.length||0) >= (this.store.data.works?.length||0) &&
+              (data.articles?.length||0) >= (this.store.data.articles?.length||0) &&
+              (data.gallery?.length||0) >= (this.store.data.gallery?.length||0)) {
+            this.store.d = data;
+            this.store.save();
+            this.render();
+          }
+        }).catch(e=>{ console.warn('gistPublicLoad:', e); });
+      return;
+    }
     if (!this._gistConnected || !this._gistId || !this._gistToken) return;
     fetch('https://api.github.com/gists/'+this._gistId, {
       headers: {'Authorization': 'Bearer '+this._gistToken, 'Accept': 'application/vnd.github+json'},
@@ -1321,7 +1347,6 @@ const App = {
       if (!content) return;
       const data = JSON.parse(content);
       if (!data.profile || !data.works) return;
-      // Only merge if Gist data is newer (has more works or articles)
       if ((data.works?.length||0) >= (this.store.data.works?.length||0) &&
           (data.articles?.length||0) >= (this.store.data.articles?.length||0) &&
           (data.gallery?.length||0) >= (this.store.data.gallery?.length||0)) {
@@ -1338,6 +1363,11 @@ const App = {
     localStorage.removeItem('portfolio_gist_id');
     localStorage.removeItem('portfolio_gist_token');
     localStorage.removeItem('portfolio_gist_sync');
+    if (this.store.data._gistPublicUrl) {
+      this.store.data._gistPublicUrl = '';
+      this._gistPublicUrl = '';
+      this.store.save();
+    }
     const self = this;
     this.store.save = function() { try{localStorage.setItem(self.store.key,JSON.stringify(self.store.d));}catch(e){console.warn(e);} };
     this.closeModal(); this.toast('已断开 Gist 同步');
@@ -1379,6 +1409,13 @@ const App = {
         <button class="btn btn-s" id="importBtn" style="width:100%">📤 导入数据（恢复备份）</button>
         <input type="file" id="importFile" accept=".json" style="display:none">
         ${gistHtml}
+        <div style="margin:14px 0;padding:12px;border-radius:8px;background:var(--alt);border:1px solid var(--b2)">
+          <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px">🌐 公开数据同步</div>
+          <p style="font-size:0.75rem;color:var(--t3);margin-bottom:8px;line-height:1.5">设置后所有访问者自动加载此数据源，无需登录。<br>连接 Gist 后会自动生成公开链接。</p>
+          <input id="pubUrlInput" type="url" placeholder="https://gist.githubusercontent.com/.../raw/..." style="width:100%;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:0.82rem;outline:none;margin-bottom:6px" value="${esc(this.store.data._gistPublicUrl||'')}">
+          <button class="btn btn-sm btn-p" id="pubUrlSaveBtn" style="width:100%">💾 保存公开数据源</button>
+          ${this.store.data._gistPublicUrl?`<div style="font-size:0.7rem;color:var(--t3);margin-top:6px;word-break:break-all">当前: ${esc(this.store.data._gistPublicUrl)}</div>`:''}
+        </div>
         <p style="font-size:0.75rem;color:var(--t3);margin-top:10px">导入会覆盖当前所有数据，建议先导出备份。</p>
       `,
       footer: [{label:'关闭',cls:'btn-s'}],
@@ -1389,6 +1426,16 @@ const App = {
           const file = e.target.files[0];
           if (!file) return;
           this.importData(file);
+        };
+        $('pubUrlSaveBtn').onclick = () => {
+          const url = $('pubUrlInput').value.trim();
+          if (!url) { this.toast('请输入公开 Gist 的 Raw URL'); return; }
+          this.store.data._gistPublicUrl = url;
+          this._gistPublicUrl = url;
+          this.store.save();
+          this.closeModal();
+          this.toast('✅ 公开数据源已保存，刷新后生效');
+          setTimeout(()=>this.showBackupModal(), 500);
         };
         if (connected) {
           $('gistSyncBtn').onclick = () => { this.gistSync(); this.toast('🔄 同步中...'); };
