@@ -352,7 +352,7 @@ const App = {
       wide: true,
       title: `📦 ${w.title}`,
       body: `
-        ${w.image?`<div style="margin:-14px -20px 14px;border-radius:10px 10px 0 0;overflow:hidden;max-height:240px"><img src="${esc(w.image)}" style="width:100%;height:100%;object-fit:cover;display:block"></div>`:''}
+        ${w.image?`<div style="margin:-14px -20px 14px;border-radius:10px 10px 0 0;overflow:hidden;cursor:zoom-in" onclick="App.showWorkGalleryViewer('${w.id}')"><img src="${esc(w.image)}" style="width:100%;display:block"></div>`:''}
         <div style="font-size:0.88rem;line-height:1.8;color:var(--t2)">${esc(w.desc)}</div>
         ${w.tags?.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:12px">${w.tags.map(t=>`<span class="w-tag">${esc(t)}</span>`).join('')}</div>`:''}
         ${w.links?.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid var(--b2)">${w.links.map(l=>`<a href="${esc(l.url)}" class="w-link" target="_blank">🔗 ${esc(l.label)}</a>`).join('')}</div>`:''}
@@ -591,6 +591,17 @@ const App = {
     $('galleryViewer').style.display = '';
   },
 
+  showWorkGalleryViewer(id) {
+    if (this.editMode) return;
+    const works = this.store.data.works.filter(w => w.image).sort((a,b)=> a.order - b.order);
+    if (!works.length) return;
+    this._gvList = works;
+    this._gvIdx = works.findIndex(w => w.id === id);
+    if (this._gvIdx === -1) { this.toast('未找到图片'); return; }
+    this._renderGalleryViewer();
+    $('galleryViewer').style.display = '';
+  },
+
   _renderGalleryViewer() {
     const g = this._gvList[this._gvIdx];
     if (!g) return;
@@ -692,7 +703,7 @@ const App = {
       if (t.closest('#aAdd')) { this.modalArticle(); return; }
       if (t.closest('#gAdd')) { this.modalGalleryImage(); return; }
 
-      // Image click → lightbox/gallery viewer (non-edit mode)
+      // Image click → gallery viewer (non-edit mode)
       const imgEl = t.closest('.w-card-img');
       if (imgEl && !this.editMode) {
         const card = imgEl.closest('.w-card');
@@ -700,9 +711,7 @@ const App = {
           if (card.classList.contains('g-card')) {
             this.showGalleryViewer(card.dataset.id); return;
           }
-          const w = this.store.data.works.find(x => x.id === card.dataset.id);
-          const src = w && (w.image || '');
-          if (src) this.showLightbox(src);
+          this.showWorkGalleryViewer(card.dataset.id); return;
         }
         return;
       }
