@@ -30,10 +30,10 @@ const App = {
       bio:'Crafting digital experiences with code and creativity.',
       about:'热爱设计 & 开发，专注于构建美观且实用的数字产品。',
       avatar:'',
-      skills:['UI/UX','Frontend','React','JavaScript','CSS'],
       contacts:[{icon:'✉',label:'hello@example.com'},{icon:'📍',label:'Shanghai'}],
       socials:[{icon:'🐙',label:'GitHub',url:'https://github.com'},{icon:'📺',label:'Bilibili',url:'https://bilibili.com'}],
     },
+    skills:['UI/UX','Frontend','React','JavaScript','CSS'],
     works:[
       {id:'w1',title:'Project Alpha',desc:'一个融合传统文化与现代设计的数字交互项目。',tags:['Design','Frontend'],links:[{label:'GitHub',url:'https://github.com'}],order:0},
       {id:'w2',title:'FocusTask Pro',desc:'极智任务管理工具，支持 NLP 解析、番茄钟。',tags:['Productivity','JavaScript'],links:[{label:'GitHub',url:'https://github.com'}],order:1},
@@ -62,6 +62,11 @@ const App = {
   init() {
     try {
       this.store = new Store('portfolio_data', this.defaults);
+      // Migrate skills from profile to global
+      const d = this.store.data;
+      if (d.profile && d.profile.skills && !d.skills) {
+        d.skills = d.profile.skills;
+      }
       this.obs = new IntersectionObserver(e=>{e.forEach(e=>{if(e.isIntersecting)e.target.classList.add('iv');})},{threshold:0.05});
       this.render();
       this.bind();
@@ -97,7 +102,7 @@ const App = {
       el.innerHTML = d.avatar ? `<img src="${esc(d.avatar)}" alt="">` : esc(d.name[0]||'👤');
     });
 
-    $('skillsTags').innerHTML = d.skills.map((s,i)=>
+    $('skillsTags').innerHTML = this._skills().map((s,i)=>
       `<span class="tag" data-i="${i}">${esc(s)}</span>`
     ).join('') + (this.editMode ? '<span class="tag tag-add" id="skillAdd">+ 添加</span>' : '');
 
@@ -214,7 +219,7 @@ const App = {
       </div>
     `).join('');
     // Skills
-    $('hpSkills').innerHTML = d.profile.skills.map(s => `<span class="tag">${esc(s)}</span>`).join('');
+    $('hpSkills').innerHTML = this._skills().map(s => `<span class="tag">${esc(s)}</span>`).join('');
     // Observe animations
     this.observeAll($('hpWorks').children);
     this.observeAll($('hpArticles').children);
@@ -376,12 +381,12 @@ const App = {
   renderAboutExtras() {
     const d = this.store.data;
     // Stats
-    const maxN = Math.max(d.works.length, d.articles.length, d.gallery.length, d.profile.skills.length, 1);
+    const maxN = Math.max(d.works.length, d.articles.length, d.gallery.length, this._skills().length, 1);
     $('abStats').innerHTML = `
       <div class="ab-stat" style="--pct:${d.works.length/maxN*100}%"><span class="ab-stat-n">${d.works.length}</span><span class="ab-stat-l">作品</span></div>
       <div class="ab-stat" style="--pct:${d.articles.length/maxN*100}%"><span class="ab-stat-n">${d.articles.length}</span><span class="ab-stat-l">文章</span></div>
       <div class="ab-stat" style="--pct:${d.gallery.length/maxN*100}%"><span class="ab-stat-n">${d.gallery.length}</span><span class="ab-stat-l">影像</span></div>
-      <div class="ab-stat" style="--pct:${d.profile.skills.length/maxN*100}%"><span class="ab-stat-n">${d.profile.skills.length}</span><span class="ab-stat-l">技能</span></div>
+      <div class="ab-stat" style="--pct:${this._skills().length/maxN*100}%"><span class="ab-stat-n">${this._skills().length}</span><span class="ab-stat-l">技能</span></div>
     `;
     // Timeline (experience + education)
     const tl = [...(d.experience||[]), ...(d.education||[])]
@@ -870,10 +875,10 @@ const App = {
       const tag = e.target.closest('.tag');
       if (!tag) return;
       if (tag.id === 'skillAdd') {
-        this.store.data.profile.skills.push('新技能');
+        this._skills().push('新技能');
         this.store.save();
         this.renderProfile();
-        const idx = this.store.data.profile.skills.length - 1;
+        const idx = this._skills().length - 1;
         this.modalSkill(idx);
         return;
       }
@@ -1104,7 +1109,7 @@ const App = {
 
   // ===== CONTACT / SOCIAL / SKILL =====
   modalSkill(idx) {
-    const skills = this.store.data.profile.skills;
+    const skills = this._skills();
     const val = skills[idx]||'';
     this.modal({
       title:'✎ 编辑技能',
@@ -1433,6 +1438,12 @@ const App = {
       d.innerHTML='<input placeholder="名称"><input placeholder="URL"><button class="link-rm">✕</button>';
       c.appendChild(d);
     });
+  },
+  _skills() {
+    const sk = this.store.data.skills;
+    if (sk) return sk;
+    // Fallback for old data with skills inside profile
+    return this.store.data.profile?.skills || [];
   },
 };
 
