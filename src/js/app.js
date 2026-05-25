@@ -1310,12 +1310,14 @@ const App = {
         this._syncLastSync = now;
         localStorage.setItem('portfolio_sync_stamp', now);
         console.log('[sync] OK', now);
+        this._showSyncIndicator(true);
       } else {
         console.warn('[sync] failed:', r.status);
+        this._showSyncIndicator(false);
         this.toast('❌ 同步失败 (HTTP ' + r.status + ')');
       }
     })
-    .catch(e => { console.warn('[sync] error:', e); this.toast('❌ 同步失败: ' + e.message); });
+    .catch(e => { console.warn('[sync] error:', e); this._showSyncIndicator(false); this.toast('❌ 同步失败: ' + e.message); });
   },
 
   _loadFromRepo() {
@@ -1373,6 +1375,20 @@ const App = {
     this.closeModal();
     this.toast('已断开同步');
     setTimeout(() => this.showBackupModal(), 500);
+  },
+
+  _showSyncIndicator(ok) {
+    // Show a small top-right pill when sync happens
+    let el = $('syncInd');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'syncInd';
+      document.body.appendChild(el);
+    }
+    el.textContent = ok ? '☁️ 已同步' : '☁️ 失败';
+    el.className = 'show';
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.className = ''; }, 2000);
   },
 
   // ===== BACKUP & RESTORE =====
@@ -1556,6 +1572,8 @@ st.textContent=`
 .w-card:nth-child(4),.a-item:nth-child(4){--i:3;}
 .w-card:nth-child(5),.a-item:nth-child(5){--i:4;}
 .w-card:nth-child(6),.a-item:nth-child(6){--i:5;}
+#syncInd{position:fixed;top:12px;right:12px;z-index:500;padding:4px 12px;border-radius:99px;background:var(--card);color:var(--text);font-size:0.75rem;box-shadow:var(--shadow);pointer-events:none;opacity:0;transform:translateY(-6px);transition:all 0.35s cubic-bezier(0.22,1,0.36,1);}
+#syncInd.show{opacity:1;transform:translateY(0);}
 `;
 document.head.appendChild(st);
 
