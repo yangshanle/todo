@@ -1312,12 +1312,18 @@ const App = {
         console.log('[sync] OK', now);
       } else {
         console.warn('[sync] failed:', r.status);
+        this.toast('❌ 同步失败 (HTTP ' + r.status + ')');
       }
     })
-    .catch(e => console.warn('[sync] error:', e));
+    .catch(e => { console.warn('[sync] error:', e); this.toast('❌ 同步失败: ' + e.message); });
   },
 
   _loadFromRepo() {
+    // Only auto-load for visitors (no token); editor keeps local data
+    if (this._syncConnected) {
+      console.log('[sync] editor mode, skipping repo load');
+      return;
+    }
     fetch('./data.json?_cb=' + Date.now(), { cache: 'no-store' })
     .then(r => {
       if (!r.ok) { console.log('[sync] no data.json yet'); return null; }
@@ -1338,8 +1344,8 @@ const App = {
   },
 
   _connectSync() {
-    const tok = prompt('输入 GitHub Personal Access Token\n（需要 public_repo 权限，用于提交 data.json 到 gh-pages）');
-    if (!tok) return;
+    const tok = $('syncTokenInput')?.value?.trim();
+    if (!tok) { this.toast('请输入 Personal Access Token'); return; }
     this.toast('🔄 验证中...');
     fetch('https://api.github.com/repos/yangshanle/todo', {
       headers: {'Authorization': 'Bearer ' + tok, 'Accept': 'application/vnd.github+json'}
