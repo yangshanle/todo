@@ -1461,7 +1461,7 @@ const App = {
       fetch('https://api.github.com/gists/'+defId, {
         method: 'PATCH', headers: h,
         body: JSON.stringify({files: {'portfolio-data.json': {content: JSON.stringify(d)}}}),
-      }).catch(function(){});
+      }).catch(function(e){ console.warn('defaults-sync:', e); });
     }
     return main;
   },
@@ -1484,8 +1484,8 @@ const App = {
 
   gistLoadSilent() {
     if (this._gistPublicUrl) {
-      // Load from public raw URL (no auth needed)
-      fetch(this._gistPublicUrl)
+      // Load from public raw URL (no auth needed), bypass cache
+      fetch(this._gistPublicUrl, {cache: 'no-cache'})
         .then(r=>{ if (!r.ok) return null; return r.json(); })
         .then(data=>{
           if (!data || !data.profile || !data.works) return;
