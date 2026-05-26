@@ -1338,8 +1338,8 @@ const App = {
       const date = new Date().toUTCString();
       // Use x-oss-date because fetch() silently drops the Date header
       const resource = '/' + this._ossBucket + '/data.json';
-      const ossHeaders = 'x-oss-date:' + date;
-      const signStr = 'PUT\n\napplication/json\n\n' + ossHeaders + '\n' + resource;
+      const ossHeaders = 'x-oss-date:' + date + '\n';
+      const signStr = 'PUT\n\napplication/json\n\n' + ossHeaders + resource;
       const sign = await this._ossSign(signStr);
       const url = 'https://' + this._ossBucket + '.' + this._ossRegion + '.aliyuncs.com/data.json';
       const res = await fetch(url, {
