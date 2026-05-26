@@ -1353,21 +1353,24 @@ const App = {
       const fd = new FormData();
       fd.append('token', token);
       fd.append('key', 'data.json');
-      fd.append('file', new Blob([json], {type:'application/json'}));
-      const res = await fetch('https://upload.qiniup.com/', {
+      fd.append('file', new Blob([json], {type:'application/json'}), 'data.json');
+      const res = await fetch('https://up.qiniup.com/', {
         method:'POST',
         body: fd,
       });
-      const result = await res.json();
-      if (res.ok && result.key) {
+      const text = await res.text();
+      let errMsg = 'HTTP '+res.status;
+      try { const j=JSON.parse(text); errMsg = j.error||errMsg; } catch(e) {}
+      if (res.ok && text.includes('"key"')) {
         const now = new Date().toLocaleString();
         this._qiniuLastSync = now;
         localStorage.setItem('portfolio_qiniu_stamp', now);
         this._showSyncIndicator(true);
+        console.log('[qiniu] save OK', now);
       } else {
-        console.warn('[qiniu] save failed:', result);
+        console.warn('[qiniu] save failed:', text);
         this._showSyncIndicator(false);
-        this.toast('❌ 同步失败: ' + (result.error||'未知错误'));
+        this.toast('❌ 同步失败: ' + errMsg + ' | bucket='+this._qiniuBucket);
       }
     } catch(e) {
       console.warn('[qiniu] error:', e);
