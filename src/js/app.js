@@ -18,11 +18,13 @@ const App = {
   searchArticles: '',
   _gvList: [],
   _gvIdx: 0,
-  _syncConnected: false,
-  _syncToken: '',
-  _syncLastSync: '',
-  _syncBusy: false,
-  _syncRetry: false,
+  _qiniuConnected: false,
+  _qiniuDomain: '',
+  _qiniuBucket: '',
+  _qiniuAk: '',
+  _qiniuSk: '',
+  _qiniuBusy: false,
+  _qiniuLastSync: '',
   genId: () => 'i_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
 
   defaults: {
@@ -63,7 +65,7 @@ const App = {
   init() {
     try {
       this.store = new Store('portfolio_data', this.defaults, () => {
-        if (this._syncConnected) this._saveToRepo();
+        if (this._qiniuConnected) this._qiniuSave();
       });
       // Migrate skills from profile to global
       const d = this.store.data;
@@ -80,7 +82,7 @@ const App = {
       this.switchPage('home');
       this.initScrollEffects();
       this.generatePageDecorations();
-      this._initSync();
+      this._qiniuInit();
     } catch(e) { console.error('init error:', e); }
     // Easter eggs
     this._initEasterEggs();
@@ -1304,136 +1306,129 @@ const App = {
 
   closeModal() { $('modal').style.display='none'; $('modal').querySelector('.modal-box').classList.remove('modal-wide'); },
 
-  // ===== GITHUB REPO SYNC =====
-  _initSync() {
-    const tok = localStorage.getItem('portfolio_sync_token');
-    this._syncToken = tok ? atob(tok) : '';
-    this._syncConnected = !!this._syncToken;
-    this._syncLastSync = localStorage.getItem('portfolio_sync_stamp') || '';
-    // Load from repo silently (for visitors)
-    this._loadFromRepo();
+  // ===== QINIU CLOUD SYNC =====
+  _qiniuInit() {
+    this._qiniuDomain = localStorage.getItem('portfolio_qiniu_domain') || '';
+    this._qiniuBucket = localStorage.getItem('portfolio_qiniu_bucket') || '';
+    this._qiniuAk = localStorage.getItem('portfolio_qiniu_ak') || '';
+    const sk = localStorage.getItem('portfolio_qiniu_sk');
+    this._qiniuSk = sk ? atob(sk) : '';
+    this._qiniuConnected = !!(this._qiniuDomain && this._qiniuAk && this._qiniuSk);
+    this._qiniuLastSync = localStorage.getItem('portfolio_qiniu_stamp') || '';
+    // Load from cloud silently (for visitors)
+    if (!this._qiniuConnected) this._qiniuLoad();
   },
 
-  _saveToRepo() {
-    if (!this._syncConnected || !this._syncToken) {
-      console.log('[sync] not connected, skipping');
-      return;
-    }
-    // Prevent overlapping sync calls (avoids 409 conflict)
-    if (this._syncBusy) {
-      console.log('[sync] busy, queuing retry...');
-      // Schedule a retry after current sync finishes
-      if (!this._syncRetry) {
-        this._syncRetry = true;
-        setTimeout(() => { this._syncRetry = false; this._saveToRepo(); }, 1500);
-      }
-      return;
-    }
-    this._syncBusy = true;
-    console.log('[sync] saving to repo...');
-    const json = JSON.stringify(this.store.data, null, 2);
-    const bytes = new TextEncoder().encode(json);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    const content = btoa(binary);
-    const url = 'https://api.github.com/repos/yangshanle/todo/contents/data.json';
-    const headers = {
-      'Authorization': 'Bearer ' + this._syncToken,
-      'Content-Type': 'application/json',
-      'Accept': 'application/vnd.github+json',
-    };
-    fetch(url + '?ref=gh-pages', { headers })
-    .then(r => r.ok ? r.json() : null)
-    .then(file => {
-      const body = {
-        message: 'sync portfolio data',
-        content: content,
-        branch: 'gh-pages'
-      };
-      if (file && file.sha) body.sha = file.sha;
-      return fetch(url, { method: 'PUT', headers, body: JSON.stringify(body) });
-    })
-    .then(r => {
-      if (r.ok) {
+  // URL-safe base64 encode
+  _qiniuEncode(str) {
+    return btoa(str).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  },
+
+  // HMAC-SHA1 sign
+  async _qiniuSign(data) {
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey('raw', enc.encode(this._qiniuSk),
+      {name:'HMAC',hash:'SHA-1'}, false, ['sign']);
+    const sig = await crypto.subtle.sign('HMAC', key, enc.encode(data));
+    return this._qiniuEncode(String.fromCharCode(...new Uint8Array(sig)));
+  },
+
+  // Generate upload token
+  async _qiniuToken() {
+    const deadline = Math.floor(Date.now()/1000) + 3600;
+    const policy = JSON.stringify({scope:this._qiniuBucket+':data.json',deadline});
+    const encoded = this._qiniuEncode(policy);
+    const sign = await this._qiniuSign(encoded);
+    return this._qiniuAk + ':' + sign + ':' + encoded;
+  },
+
+  // Save to Qiniu
+  async _qiniuSave() {
+    if (!this._qiniuConnected) return;
+    if (this._qiniuBusy) return;
+    this._qiniuBusy = true;
+    try {
+      const token = await this._qiniuToken();
+      const json = JSON.stringify(this.store.data, null, 2);
+      const res = await fetch('https://upload.qiniup.com/put/data.json', {
+        method:'PUT',
+        headers:{'Authorization':'UpToken '+token,'Content-Type':'application/json'},
+        body: json,
+      });
+      if (res.ok) {
         const now = new Date().toLocaleString();
-        this._syncLastSync = now;
-        localStorage.setItem('portfolio_sync_stamp', now);
-        console.log('[sync] OK', now);
+        this._qiniuLastSync = now;
+        localStorage.setItem('portfolio_qiniu_stamp', now);
         this._showSyncIndicator(true);
       } else {
-        console.warn('[sync] failed:', r.status);
+        console.warn('[qiniu] save failed:', res.status);
         this._showSyncIndicator(false);
-        this.toast('❌ 同步失败 (HTTP ' + r.status + ')');
+        this.toast('❌ 同步失败 (HTTP '+res.status+')');
       }
-      this._syncBusy = false;
-    })
-    .catch(e => {
-      console.warn('[sync] error:', e);
+    } catch(e) {
+      console.warn('[qiniu] error:', e);
       this._showSyncIndicator(false);
-      this.toast('❌ 同步失败: ' + e.message);
-      this._syncBusy = false;
-    });
-  },
-
-  _loadFromRepo() {
-    // Only auto-load for visitors (no token); editor keeps local data
-    if (this._syncConnected) {
-      console.log('[sync] editor mode, skipping repo load');
-      return;
+      this.toast('❌ 同步失败: '+e.message);
     }
-    fetch('./data.json?_cb=' + Date.now(), { cache: 'no-store' })
-    .then(r => {
-      if (!r.ok) { console.log('[sync] no data.json yet'); return null; }
-      return r.json();
-    })
-    .then(data => {
-      if (!data || !data.profile) {
-        console.log('[sync] invalid data or not available');
-        return;
-      }
-      console.log('[sync] loaded data from repo');
+    this._qiniuBusy = false;
+  },
+
+  // Load from Qiniu CDN (visitor mode)
+  async _qiniuLoad() {
+    if (this._qiniuConnected) return; // editor skips auto-load
+    try {
+      const url = 'https://'+this._qiniuDomain+'/data.json?_cb='+Date.now();
+      const r = await fetch(url, {cache:'no-store'});
+      if (!r.ok) { console.log('[qiniu] no data.json yet'); return; }
+      const data = await r.json();
+      if (!data||!data.profile) return;
+      console.log('[qiniu] loaded data from cloud');
       this.store.d = data;
-      try { localStorage.setItem(this.store.key, JSON.stringify(data)); } catch(e) { console.warn('[sync] localStorage error', e); }
+      try { localStorage.setItem(this.store.key, JSON.stringify(data)); } catch(e) { console.warn(e); }
       this.render();
-      console.log('[sync] merged and rendered');
-    })
-    .catch(e => console.warn('[sync] load error:', e));
+    } catch(e) { console.warn('[qiniu] load error:', e); }
   },
 
-  _connectSync() {
-    const tok = $('syncTokenInput')?.value?.trim();
-    if (!tok) { this.toast('请输入 Personal Access Token'); return; }
-    this.toast('🔄 验证中...');
-    fetch('https://api.github.com/repos/yangshanle/todo', {
-      headers: {'Authorization': 'Bearer ' + tok, 'Accept': 'application/vnd.github+json'}
-    })
-    .then(r => {
-      if (!r.ok) throw new Error('Token 无效');
-      this._syncToken = tok;
-      this._syncConnected = true;
-      localStorage.setItem('portfolio_sync_token', btoa(tok));
-      this.toast('✅ 已连接');
-      this.closeModal();
-      this._saveToRepo();
-      setTimeout(() => this.showBackupModal(), 800);
-    })
-    .catch(e => { this.toast('❌ ' + e.message); });
+  _connectQiniu() {
+    const domain = $('qi_domain')?.value?.trim();
+    const bucket = $('qi_bucket')?.value?.trim();
+    const ak = $('qi_ak')?.value?.trim();
+    const sk = $('qi_sk')?.value?.trim();
+    if (!domain||!bucket||!ak||!sk) { this.toast('请填写所有字段'); return; }
+    this._qiniuDomain = domain;
+    this._qiniuBucket = bucket;
+    this._qiniuAk = ak;
+    this._qiniuSk = sk;
+    this._qiniuConnected = true;
+    localStorage.setItem('portfolio_qiniu_domain', domain);
+    localStorage.setItem('portfolio_qiniu_bucket', bucket);
+    localStorage.setItem('portfolio_qiniu_ak', ak);
+    localStorage.setItem('portfolio_qiniu_sk', btoa(sk));
+    this.toast('✅ 已连接');
+    this.closeModal();
+    this._qiniuSave();
+    setTimeout(() => this.showBackupModal(), 800);
   },
 
-  _disconnectSync() {
+  _disconnectQiniu() {
     if (!confirm('断开同步连接？数据不会丢失。')) return;
-    this._syncConnected = false;
-    this._syncToken = '';
-    this._syncLastSync = '';
-    localStorage.removeItem('portfolio_sync_token');
-    localStorage.removeItem('portfolio_sync_stamp');
+    this._qiniuConnected = false;
+    this._qiniuDomain = '';
+    this._qiniuBucket = '';
+    this._qiniuAk = '';
+    this._qiniuSk = '';
+    this._qiniuLastSync = '';
+    localStorage.removeItem('portfolio_qiniu_domain');
+    localStorage.removeItem('portfolio_qiniu_bucket');
+    localStorage.removeItem('portfolio_qiniu_ak');
+    localStorage.removeItem('portfolio_qiniu_sk');
+    localStorage.removeItem('portfolio_qiniu_stamp');
     this.closeModal();
     this.toast('已断开同步');
     setTimeout(() => this.showBackupModal(), 500);
   },
 
   _showSyncIndicator(ok) {
-    // Show a small top-right pill when sync happens
     let el = $('syncInd');
     if (!el) {
       el = document.createElement('div');
@@ -1448,16 +1443,17 @@ const App = {
 
   // ===== BACKUP & RESTORE =====
   showBackupModal() {
-    const connected = this._syncConnected;
+    const connected = this._qiniuConnected;
     let syncHtml;
     if (connected) {
       syncHtml = `
         <div style="margin:14px 0;padding:12px;border-radius:8px;background:var(--alt);border:1px solid var(--b2)">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
             <span style="color:#4CAF50">✅</span>
-            <span style="font-size:0.85rem;font-weight:600">同步已连接</span>
+            <span style="font-size:0.85rem;font-weight:600">☁️ 七牛云同步已连接</span>
           </div>
-          ${this._syncLastSync?'<div style="font-size:0.72rem;color:var(--t3);margin-bottom:10px">上次同步: '+esc(this._syncLastSync)+'</div>':''}
+          <div style="font-size:0.72rem;color:var(--t3);margin-bottom:4px">存储空间: ${esc(this._qiniuBucket)}</div>
+          ${this._qiniuLastSync?'<div style="font-size:0.72rem;color:var(--t3);margin-bottom:10px">上次同步: '+esc(this._qiniuLastSync)+'</div>':''}
           <button class="btn btn-sm btn-p" id="syncNowBtn" style="width:100%;margin-bottom:4px">🔄 立即同步</button>
           <button class="btn btn-sm" id="syncDisBtn" style="width:100%;background:var(--tag-bg);color:var(--red)">🔌 断开连接</button>
         </div>
@@ -1465,9 +1461,12 @@ const App = {
     } else {
       syncHtml = `
         <div style="margin:14px 0;padding:12px;border-radius:8px;background:var(--alt);border:1px solid var(--b2)">
-          <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px">☁️ GitHub Pages 自动同步</div>
-          <p style="font-size:0.75rem;color:var(--t3);margin-bottom:8px;line-height:1.5">开启后每次修改自动提交 data.json 到 GitHub Pages。<br>需要 <a href="https://github.com/settings/tokens/new?scopes=public_repo&description=Portfolio+Sync" target="_blank" style="color:var(--red)">创建 Token</a>（勾选 public_repo）</p>
-          <input id="syncTokenInput" type="password" placeholder="粘贴 Personal Access Token" style="width:100%;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:0.82rem;outline:none;margin-bottom:6px">
+          <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px">☁️ 七牛云自动同步</div>
+          <p style="font-size:0.75rem;color:var(--t3);margin-bottom:8px;line-height:1.5">开启后每次修改自动同步 data.json 到七牛云。<br>需要先创建 <b>公开</b> 存储空间，填写以下信息：</p>
+          <div class="fg" style="margin-bottom:6px"><label>CDN 域名</label><input id="qi_domain" value="${esc(this._qiniuDomain)}" placeholder="xxx.bkt.clouddn.com"></div>
+          <div class="fg" style="margin-bottom:6px"><label>空间名称 (Bucket)</label><input id="qi_bucket" value="${esc(this._qiniuBucket)}" placeholder="my-bucket"></div>
+          <div class="fg" style="margin-bottom:6px"><label>AccessKey</label><input id="qi_ak" value="${esc(this._qiniuAk)}" placeholder="AK..."></div>
+          <div class="fg" style="margin-bottom:6px"><label>SecretKey</label><input id="qi_sk" type="password" placeholder="SK..."></div>
           <button class="btn btn-sm btn-p" id="syncConnBtn" style="width:100%">🔗 连接</button>
         </div>
       `;
@@ -1492,10 +1491,10 @@ const App = {
           this.importData(file);
         };
         if (connected) {
-          $('syncNowBtn').onclick = () => { this._saveToRepo(); this.toast('🔄 同步中...'); };
-          $('syncDisBtn').onclick = () => this._disconnectSync();
+          $('syncNowBtn').onclick = () => { this._qiniuSave(); this.toast('🔄 同步中...'); };
+          $('syncDisBtn').onclick = () => this._disconnectQiniu();
         } else {
-          $('syncConnBtn').onclick = () => this._connectSync();
+          $('syncConnBtn').onclick = () => this._connectQiniu();
         }
       },
     });
