@@ -1319,9 +1319,8 @@ const App = {
     if (!this._ossConnected) this._ossLoad();
   },
 
-  // OSS Signature V1: base64(HMAC-SHA1(VERB + "\n" + MD5 + "\n" + TYPE + "\n" + DATE + "\n" + RESOURCE))
-  async _ossSign(verb, type, date, resource) {
-    const str = verb + '\n\n' + type + '\n' + date + '\n' + resource;
+  // OSS Signature V1: HMAC-SHA1 with x-oss-date (fetch blocks Date header)
+  async _ossSign(str) {
     const enc = new TextEncoder();
     const key = await crypto.subtle.importKey('raw', enc.encode(this._ossSk),
       {name:'HMAC',hash:'SHA-1'}, false, ['sign']);
@@ -1337,15 +1336,18 @@ const App = {
     try {
       const json = JSON.stringify(this.store.data, null, 2);
       const date = new Date().toUTCString();
+      // Use x-oss-date because fetch() silently drops the Date header
       const resource = '/' + this._ossBucket + '/data.json';
-      const sign = await this._ossSign('PUT', 'application/json', date, resource);
+      const ossHeaders = 'x-oss-date:' + date;
+      const signStr = 'PUT\n\napplication/json\n\n' + ossHeaders + '\n' + resource;
+      const sign = await this._ossSign(signStr);
       const url = 'https://' + this._ossBucket + '.' + this._ossRegion + '.aliyuncs.com/data.json';
       const res = await fetch(url, {
         method:'PUT',
         headers:{
           'Authorization':'OSS ' + this._ossAk + ':' + sign,
           'Content-Type':'application/json',
-          'Date': date,
+          'x-oss-date': date,
         },
         body: json,
       });
@@ -1359,7 +1361,7 @@ const App = {
         const text = await res.text();
         console.warn('[oss] save failed:', res.status, text);
         this._showSyncIndicator(false);
-        this.toast('❌ 同步失败 ('+res.status+')');
+        this.toast('❌ 同步失败 ('+res.status+') ' + text.slice(0,120));
       }
     } catch(e) {
       console.warn('[oss] error:', e);
