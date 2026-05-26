@@ -18,13 +18,13 @@ const App = {
   searchArticles: '',
   _gvList: [],
   _gvIdx: 0,
-  _qiniuConnected: false,
-  _qiniuDomain: '',
-  _qiniuBucket: '',
-  _qiniuAk: '',
-  _qiniuSk: '',
-  _qiniuBusy: false,
-  _qiniuLastSync: '',
+  _ossConnected: false,
+  _ossBucket: '',
+  _ossRegion: '',
+  _ossAk: '',
+  _ossSk: '',
+  _ossBusy: false,
+  _ossLastSync: '',
   genId: () => 'i_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
 
   defaults: {
@@ -65,7 +65,7 @@ const App = {
   init() {
     try {
       this.store = new Store('portfolio_data', this.defaults, () => {
-        if (this._qiniuConnected) this._qiniuSave();
+        if (this._ossConnected) this._ossSave();
       });
       // Migrate skills from profile to global
       const d = this.store.data;
@@ -82,7 +82,7 @@ const App = {
       this.switchPage('home');
       this.initScrollEffects();
       this.generatePageDecorations();
-      this._qiniuInit();
+      this._ossInit();
     } catch(e) { console.error('init error:', e); }
     // Easter eggs
     this._initEasterEggs();
@@ -1306,142 +1306,118 @@ const App = {
 
   closeModal() { $('modal').style.display='none'; $('modal').querySelector('.modal-box').classList.remove('modal-wide'); },
 
-  // ===== QINIU CLOUD SYNC =====
-  _qiniuInit() {
-    this._qiniuDomain = localStorage.getItem('portfolio_qiniu_domain') || '';
-    this._qiniuBucket = localStorage.getItem('portfolio_qiniu_bucket') || '';
-    this._qiniuAk = localStorage.getItem('portfolio_qiniu_ak') || '';
-    const sk = localStorage.getItem('portfolio_qiniu_sk');
-    this._qiniuSk = sk ? atob(sk) : '';
-    this._qiniuConnected = !!(this._qiniuDomain && this._qiniuAk && this._qiniuSk);
-    this._qiniuLastSync = localStorage.getItem('portfolio_qiniu_stamp') || '';
-    // Load from cloud silently (for visitors)
-    if (!this._qiniuConnected) this._qiniuLoad();
+  // ===== ALIBABA OSS SYNC =====
+  _ossInit() {
+    this._ossBucket = localStorage.getItem('portfolio_oss_bucket') || '';
+    this._ossRegion = localStorage.getItem('portfolio_oss_region') || '';
+    this._ossAk = localStorage.getItem('portfolio_oss_ak') || '';
+    const sk = localStorage.getItem('portfolio_oss_sk');
+    this._ossSk = sk ? atob(sk) : '';
+    this._ossConnected = !!(this._ossBucket && this._ossRegion && this._ossAk && this._ossSk);
+    this._ossLastSync = localStorage.getItem('portfolio_oss_stamp') || '';
+    // Load from OSS silently (for visitors)
+    if (!this._ossConnected) this._ossLoad();
   },
 
-  // URL-safe base64 (keep padding, matches Qiniu SDK)
-  _qiniuB64(str) {
-    return btoa(str).replace(/\+/g,'-').replace(/\//g,'_');
-  },
-
-  // HMAC-SHA1 sign
-  async _qiniuSign(data) {
+  // OSS Signature V1: base64(HMAC-SHA1(VERB + "\n" + MD5 + "\n" + TYPE + "\n" + DATE + "\n" + RESOURCE))
+  async _ossSign(verb, type, date, resource) {
+    const str = verb + '\n\n' + type + '\n' + date + '\n' + resource;
     const enc = new TextEncoder();
-    const key = await crypto.subtle.importKey('raw', enc.encode(this._qiniuSk),
+    const key = await crypto.subtle.importKey('raw', enc.encode(this._ossSk),
       {name:'HMAC',hash:'SHA-1'}, false, ['sign']);
-    const sig = await crypto.subtle.sign('HMAC', key, enc.encode(data));
-    return this._qiniuB64(String.fromCharCode(...new Uint8Array(sig)));
+    const sig = await crypto.subtle.sign('HMAC', key, enc.encode(str));
+    return btoa(String.fromCharCode(...new Uint8Array(sig)));
   },
 
-  // Generate upload token
-  async _qiniuToken() {
-    const deadline = Math.floor(Date.now()/1000) + 3600;
-    const policy = JSON.stringify({scope:this._qiniuBucket+':data.json',deadline});
-    const encoded = this._qiniuB64(policy);
-    const sign = await this._qiniuSign(encoded);
-    return this._qiniuAk + ':' + sign + ':' + encoded;
-  },
-
-  // Save to Qiniu (form upload, with auto region detection)
-  async _qiniuSave(region) {
-    if (!this._qiniuConnected) return;
-    if (this._qiniuBusy) return;
-    this._qiniuBusy = true;
+  // Save to OSS
+  async _ossSave() {
+    if (!this._ossConnected) return;
+    if (this._ossBusy) return;
+    this._ossBusy = true;
     try {
-      const token = await this._qiniuToken();
       const json = JSON.stringify(this.store.data, null, 2);
-      const fd = new FormData();
-      fd.append('token', token);
-      fd.append('key', 'data.json');
-      fd.append('file', new Blob([json], {type:'application/json'}), 'data.json');
-      const host = region || 'up.qiniup.com';
-      const res = await fetch('https://'+host+'/', {
-        method:'POST',
-        body: fd,
+      const date = new Date().toUTCString();
+      const resource = '/' + this._ossBucket + '/data.json';
+      const sign = await this._ossSign('PUT', 'application/json', date, resource);
+      const url = 'https://' + this._ossBucket + '.' + this._ossRegion + '.aliyuncs.com/data.json';
+      const res = await fetch(url, {
+        method:'PUT',
+        headers:{
+          'Authorization':'OSS ' + this._ossAk + ':' + sign,
+          'Content-Type':'application/json',
+          'Date': date,
+        },
+        body: json,
       });
-      const text = await res.text();
-      let errMsg = 'HTTP '+res.status;
-      let errJson;
-      try { errJson=JSON.parse(text); errMsg = errJson.error||errMsg; } catch(e) {}
-      // Auto-retry with correct region
-      if (!res.ok && errMsg && errMsg.includes('incorrect region')) {
-        const m = errMsg.match(/use\s+(\S+)/);
-        if (m && m[1]) {
-          console.log('[qiniu] retrying with region:', m[1]);
-          this._qiniuBusy = false;
-          this._qiniuSave(m[1]);
-          return;
-        }
-      }
-      if (res.ok && text.includes('"key"')) {
+      if (res.ok) {
         const now = new Date().toLocaleString();
-        this._qiniuLastSync = now;
-        localStorage.setItem('portfolio_qiniu_stamp', now);
+        this._ossLastSync = now;
+        localStorage.setItem('portfolio_oss_stamp', now);
         this._showSyncIndicator(true);
-        console.log('[qiniu] save OK', now);
+        console.log('[oss] save OK', now);
       } else {
-        console.warn('[qiniu] save failed:', text);
+        const text = await res.text();
+        console.warn('[oss] save failed:', res.status, text);
         this._showSyncIndicator(false);
-        this.toast('❌ 同步失败: ' + errMsg);
+        this.toast('❌ 同步失败 ('+res.status+')');
       }
     } catch(e) {
-      console.warn('[qiniu] error:', e);
+      console.warn('[oss] error:', e);
       this._showSyncIndicator(false);
       this.toast('❌ 同步失败: '+e.message);
     }
-    this._qiniuBusy = false;
+    this._ossBusy = false;
   },
 
-  // Load from Qiniu CDN (visitor mode)
-  async _qiniuLoad() {
-    if (this._qiniuConnected) return; // editor skips auto-load
+  // Load from OSS (anonymous GET)
+  async _ossLoad() {
     try {
-      const url = 'https://'+this._qiniuDomain+'/data.json?_cb='+Date.now();
+      const url = 'https://' + this._ossBucket + '.' + this._ossRegion + '.aliyuncs.com/data.json?_cb='+Date.now();
       const r = await fetch(url, {cache:'no-store'});
-      if (!r.ok) { console.log('[qiniu] no data.json yet'); return; }
+      if (!r.ok) { console.log('[oss] no data.json yet'); return; }
       const data = await r.json();
       if (!data||!data.profile) return;
-      console.log('[qiniu] loaded data from cloud');
+      console.log('[oss] loaded data from cloud');
       this.store.d = data;
       try { localStorage.setItem(this.store.key, JSON.stringify(data)); } catch(e) { console.warn(e); }
       this.render();
-    } catch(e) { console.warn('[qiniu] load error:', e); }
+    } catch(e) { console.warn('[oss] load error:', e); }
   },
 
-  _connectQiniu() {
-    const domain = $('qi_domain')?.value?.trim();
-    const bucket = $('qi_bucket')?.value?.trim();
-    const ak = $('qi_ak')?.value?.trim();
-    const sk = $('qi_sk')?.value?.trim();
-    if (!domain||!bucket||!ak||!sk) { this.toast('请填写所有字段'); return; }
-    this._qiniuDomain = domain;
-    this._qiniuBucket = bucket;
-    this._qiniuAk = ak;
-    this._qiniuSk = sk;
-    this._qiniuConnected = true;
-    localStorage.setItem('portfolio_qiniu_domain', domain);
-    localStorage.setItem('portfolio_qiniu_bucket', bucket);
-    localStorage.setItem('portfolio_qiniu_ak', ak);
-    localStorage.setItem('portfolio_qiniu_sk', btoa(sk));
+  _connectOSS() {
+    const bucket = $('oss_bucket')?.value?.trim();
+    const region = $('oss_region')?.value?.trim();
+    const ak = $('oss_ak')?.value?.trim();
+    const sk = $('oss_sk')?.value?.trim();
+    if (!bucket||!region||!ak||!sk) { this.toast('请填写所有字段'); return; }
+    this._ossBucket = bucket;
+    this._ossRegion = region;
+    this._ossAk = ak;
+    this._ossSk = sk;
+    this._ossConnected = true;
+    localStorage.setItem('portfolio_oss_bucket', bucket);
+    localStorage.setItem('portfolio_oss_region', region);
+    localStorage.setItem('portfolio_oss_ak', ak);
+    localStorage.setItem('portfolio_oss_sk', btoa(sk));
     this.toast('✅ 已连接');
     this.closeModal();
-    this._qiniuSave();
+    this._ossSave();
     setTimeout(() => this.showBackupModal(), 800);
   },
 
-  _disconnectQiniu() {
+  _disconnectOSS() {
     if (!confirm('断开同步连接？数据不会丢失。')) return;
-    this._qiniuConnected = false;
-    this._qiniuDomain = '';
-    this._qiniuBucket = '';
-    this._qiniuAk = '';
-    this._qiniuSk = '';
-    this._qiniuLastSync = '';
-    localStorage.removeItem('portfolio_qiniu_domain');
-    localStorage.removeItem('portfolio_qiniu_bucket');
-    localStorage.removeItem('portfolio_qiniu_ak');
-    localStorage.removeItem('portfolio_qiniu_sk');
-    localStorage.removeItem('portfolio_qiniu_stamp');
+    this._ossConnected = false;
+    this._ossBucket = '';
+    this._ossRegion = '';
+    this._ossAk = '';
+    this._ossSk = '';
+    this._ossLastSync = '';
+    localStorage.removeItem('portfolio_oss_bucket');
+    localStorage.removeItem('portfolio_oss_region');
+    localStorage.removeItem('portfolio_oss_ak');
+    localStorage.removeItem('portfolio_oss_sk');
+    localStorage.removeItem('portfolio_oss_stamp');
     this.closeModal();
     this.toast('已断开同步');
     setTimeout(() => this.showBackupModal(), 500);
@@ -1462,17 +1438,17 @@ const App = {
 
   // ===== BACKUP & RESTORE =====
   showBackupModal() {
-    const connected = this._qiniuConnected;
+    const connected = this._ossConnected;
     let syncHtml;
     if (connected) {
       syncHtml = `
         <div style="margin:14px 0;padding:12px;border-radius:8px;background:var(--alt);border:1px solid var(--b2)">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
             <span style="color:#4CAF50">✅</span>
-            <span style="font-size:0.85rem;font-weight:600">☁️ 七牛云同步已连接</span>
+            <span style="font-size:0.85rem;font-weight:600">☁️ 阿里云 OSS 同步已连接</span>
           </div>
-          <div style="font-size:0.72rem;color:var(--t3);margin-bottom:4px">存储空间: ${esc(this._qiniuBucket)}</div>
-          ${this._qiniuLastSync?'<div style="font-size:0.72rem;color:var(--t3);margin-bottom:10px">上次同步: '+esc(this._qiniuLastSync)+'</div>':''}
+          <div style="font-size:0.72rem;color:var(--t3);margin-bottom:4px">Bucket: ${esc(this._ossBucket)} / Region: ${esc(this._ossRegion)}</div>
+          ${this._ossLastSync?'<div style="font-size:0.72rem;color:var(--t3);margin-bottom:10px">上次同步: '+esc(this._ossLastSync)+'</div>':''}
           <button class="btn btn-sm btn-p" id="syncNowBtn" style="width:100%;margin-bottom:4px">🔄 立即同步</button>
           <button class="btn btn-sm" id="syncDisBtn" style="width:100%;background:var(--tag-bg);color:var(--red)">🔌 断开连接</button>
         </div>
@@ -1480,12 +1456,12 @@ const App = {
     } else {
       syncHtml = `
         <div style="margin:14px 0;padding:12px;border-radius:8px;background:var(--alt);border:1px solid var(--b2)">
-          <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px">☁️ 七牛云自动同步</div>
-          <p style="font-size:0.75rem;color:var(--t3);margin-bottom:8px;line-height:1.5">开启后每次修改自动同步 data.json 到七牛云。<br>需要先创建 <b>公开</b> 存储空间，填写以下信息：</p>
-          <div class="fg" style="margin-bottom:6px"><label>CDN 域名</label><input id="qi_domain" value="${esc(this._qiniuDomain)}" placeholder="xxx.bkt.clouddn.com"></div>
-          <div class="fg" style="margin-bottom:6px"><label>空间名称 (Bucket)</label><input id="qi_bucket" value="${esc(this._qiniuBucket)}" placeholder="my-bucket"></div>
-          <div class="fg" style="margin-bottom:6px"><label>AccessKey</label><input id="qi_ak" value="${esc(this._qiniuAk)}" placeholder="AK..."></div>
-          <div class="fg" style="margin-bottom:6px"><label>SecretKey</label><input id="qi_sk" type="password" placeholder="SK..."></div>
+          <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px">☁️ 阿里云 OSS 自动同步</div>
+          <p style="font-size:0.75rem;color:var(--t3);margin-bottom:8px;line-height:1.5">开启后每次修改自动同步 data.json 到阿里云 OSS。<br>需要先创建 <b>公开</b> 存储空间，填写以下信息：</p>
+          <div class="fg" style="margin-bottom:6px"><label>Bucket 名称</label><input id="oss_bucket" value="${esc(this._ossBucket)}" placeholder="my-bucket"></div>
+          <div class="fg" style="margin-bottom:6px"><label>Region 端点</label><input id="oss_region" value="${esc(this._ossRegion)}" placeholder="oss-cn-hangzhou"></div>
+          <div class="fg" style="margin-bottom:6px"><label>AccessKey</label><input id="oss_ak" value="${esc(this._ossAk)}" placeholder="AK..."></div>
+          <div class="fg" style="margin-bottom:6px"><label>SecretKey</label><input id="oss_sk" type="password" placeholder="SK..."></div>
           <button class="btn btn-sm btn-p" id="syncConnBtn" style="width:100%">🔗 连接</button>
         </div>
       `;
@@ -1510,10 +1486,10 @@ const App = {
           this.importData(file);
         };
         if (connected) {
-          $('syncNowBtn').onclick = () => { this._qiniuSave(); this.toast('🔄 同步中...'); };
-          $('syncDisBtn').onclick = () => this._disconnectQiniu();
+          $('syncNowBtn').onclick = () => { this._ossSave(); this.toast('🔄 同步中...'); };
+          $('syncDisBtn').onclick = () => this._disconnectOSS();
         } else {
-          $('syncConnBtn').onclick = () => this._connectQiniu();
+          $('syncConnBtn').onclick = () => this._connectOSS();
         }
       },
     });
