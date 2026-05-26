@@ -1319,9 +1319,9 @@ const App = {
     if (!this._qiniuConnected) this._qiniuLoad();
   },
 
-  // URL-safe base64 encode
-  _qiniuEncode(str) {
-    return btoa(str).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  // URL-safe base64 (keep padding, matches Qiniu SDK)
+  _qiniuB64(str) {
+    return btoa(str).replace(/\+/g,'-').replace(/\//g,'_');
   },
 
   // HMAC-SHA1 sign
@@ -1330,20 +1330,20 @@ const App = {
     const key = await crypto.subtle.importKey('raw', enc.encode(this._qiniuSk),
       {name:'HMAC',hash:'SHA-1'}, false, ['sign']);
     const sig = await crypto.subtle.sign('HMAC', key, enc.encode(data));
-    return this._qiniuEncode(String.fromCharCode(...new Uint8Array(sig)));
+    return this._qiniuB64(String.fromCharCode(...new Uint8Array(sig)));
   },
 
   // Generate upload token
   async _qiniuToken() {
     const deadline = Math.floor(Date.now()/1000) + 3600;
     const policy = JSON.stringify({scope:this._qiniuBucket+':data.json',deadline});
-    const encoded = this._qiniuEncode(policy);
+    const encoded = this._qiniuB64(policy);
     const sign = await this._qiniuSign(encoded);
     return this._qiniuAk + ':' + sign + ':' + encoded;
   },
 
-  // Save to Qiniu (form upload)
-  async _qiniuSave() {
+  // Save to Qiniu (form upload, with auto region detection)
+  async _qiniuSave(region) {
     if (!this._qiniuConnected) return;
     if (this._qiniuBusy) return;
     this._qiniuBusy = true;
@@ -1354,13 +1354,25 @@ const App = {
       fd.append('token', token);
       fd.append('key', 'data.json');
       fd.append('file', new Blob([json], {type:'application/json'}), 'data.json');
-      const res = await fetch('https://up.qiniup.com/', {
+      const host = region || 'up.qiniup.com';
+      const res = await fetch('https://'+host+'/', {
         method:'POST',
         body: fd,
       });
       const text = await res.text();
       let errMsg = 'HTTP '+res.status;
-      try { const j=JSON.parse(text); errMsg = j.error||errMsg; } catch(e) {}
+      let errJson;
+      try { errJson=JSON.parse(text); errMsg = errJson.error||errMsg; } catch(e) {}
+      // Auto-retry with correct region
+      if (!res.ok && errMsg && errMsg.includes('incorrect region')) {
+        const m = errMsg.match(/use\s+(\S+)/);
+        if (m && m[1]) {
+          console.log('[qiniu] retrying with region:', m[1]);
+          this._qiniuBusy = false;
+          this._qiniuSave(m[1]);
+          return;
+        }
+      }
       if (res.ok && text.includes('"key"')) {
         const now = new Date().toLocaleString();
         this._qiniuLastSync = now;
@@ -1370,7 +1382,7 @@ const App = {
       } else {
         console.warn('[qiniu] save failed:', text);
         this._showSyncIndicator(false);
-        this.toast('❌ 同步失败: ' + errMsg + ' | bucket='+this._qiniuBucket);
+        this.toast('❌ 同步失败: ' + errMsg);
       }
     } catch(e) {
       console.warn('[qiniu] error:', e);
