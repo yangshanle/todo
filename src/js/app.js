@@ -1307,16 +1307,20 @@ const App = {
   closeModal() { $('modal').style.display='none'; $('modal').querySelector('.modal-box').classList.remove('modal-wide'); },
 
   // ===== ALIBABA OSS SYNC =====
+  // Public OSS config (bucket & region are public, AK/SK stay private in localStorage)
+  _ossPubBucket: 'todoyangshanle',
+  _ossPubRegion: 'oss-cn-beijing',
+
   _ossInit() {
-    this._ossBucket = localStorage.getItem('portfolio_oss_bucket') || '';
-    this._ossRegion = localStorage.getItem('portfolio_oss_region') || '';
+    this._ossBucket = localStorage.getItem('portfolio_oss_bucket') || this._ossPubBucket;
+    this._ossRegion = localStorage.getItem('portfolio_oss_region') || this._ossPubRegion;
     this._ossAk = localStorage.getItem('portfolio_oss_ak') || '';
     const sk = localStorage.getItem('portfolio_oss_sk');
     this._ossSk = sk ? atob(sk) : '';
     this._ossConnected = !!(this._ossBucket && this._ossRegion && this._ossAk && this._ossSk);
     this._ossLastSync = localStorage.getItem('portfolio_oss_stamp') || '';
     // Load from OSS silently (for visitors)
-    if (!this._ossConnected) this._ossLoad();
+    this._ossLoad();
   },
 
   // OSS Signature V1: HMAC-SHA1 with x-oss-date (fetch blocks Date header)
