@@ -74,7 +74,7 @@
         }
       ],
       "order": 2,
-      "featured": false
+      "featured": true
     },
     {
       "id": "w3",
@@ -101,7 +101,7 @@
       "links": [],
       "id": "i_1779720774639_1amo",
       "order": 1779720774639,
-      "featured": false
+      "featured": true
     }
   ],
   "articles": [
