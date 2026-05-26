@@ -741,3 +741,20 @@ body {
   .gv-meta { padding: 10px 14px; max-width: 92vw; }
   .gv-meta-desc { font-size: 0.75rem; }
 }
+
+/* ===== Featured ===== */
+.w-card-btn.featured { color: var(--gold); }
+.a-btn.featured { color: var(--gold); }
+.w-featured { border-color: var(--gold) !important; }
+.w-featured-badge {
+  position: absolute; top: 8px; left: 8px;
+  padding: 2px 8px; border-radius: 99px;
+  background: var(--gold); color: #fff;
+  font-size: 0.6rem; font-weight: 700;
+  letter-spacing: 0.5px; pointer-events: none;
+  z-index: 2; line-height: 1.4;
+}
+.w-featured .w-card-acts { right: 8px; }
+.edit-mode .w-featured { border-color: var(--gold) !important; }
+.a-featured .a-title { font-weight: 700; }
+.a-featured-star { color: var(--gold); font-size: 0.75rem; }

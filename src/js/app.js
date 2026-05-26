@@ -36,14 +36,14 @@ const App = {
     },
     skills:['UI/UX','Frontend','React','JavaScript','CSS'],
     works:[
-      {id:'w1',title:'Project Alpha',desc:'一个融合传统文化与现代设计的数字交互项目。',tags:['Design','Frontend'],links:[{label:'GitHub',url:'https://github.com'}],order:0},
-      {id:'w2',title:'FocusTask Pro',desc:'极智任务管理工具，支持 NLP 解析、番茄钟。',tags:['Productivity','JavaScript'],links:[{label:'GitHub',url:'https://github.com'}],order:1},
-      {id:'w3',title:'Washi Portfolio',desc:'以京都和纸为灵感的全屏动画作品展示站。',tags:['CSS','Creative'],links:[{label:'View',url:'#'}],order:2},
+      {id:'w1',title:'Project Alpha',desc:'一个融合传统文化与现代设计的数字交互项目。',tags:['Design','Frontend'],links:[{label:'GitHub',url:'https://github.com'}],order:0,featured:true},
+      {id:'w2',title:'FocusTask Pro',desc:'极智任务管理工具，支持 NLP 解析、番茄钟。',tags:['Productivity','JavaScript'],links:[{label:'GitHub',url:'https://github.com'}],order:1,featured:true},
+      {id:'w3',title:'Washi Portfolio',desc:'以京都和纸为灵感的全屏动画作品展示站。',tags:['CSS','Creative'],links:[{label:'View',url:'#'}],order:2,featured:false},
     ],
     articles:[
-      {id:'a1',title:'从和纸美学到现代网页设计',date:'2026-05-20',url:'',category:'设计',content:'和纸（Washi）是日本传统手工纸，以其独特的纹理和温润的质感闻名。本文将探讨如何将和纸美学融入现代网页设计，从色彩、纹理到光影效果，营造出兼具传统韵味与现代感的数字体验。'},
-      {id:'a2',title:'scroll-snap 全屏滚动实践',date:'2026-05-15',url:'',category:'技术',content:'CSS scroll-snap 提供了一种声明式的方式来实现滚动捕捉效果。本文记录在实际项目中使用 scroll-snap 的踩坑经历，包括兼容性处理、与 JavaScript 滚动的交互问题，以及最终的替代方案。'},
-      {id:'a3',title:'CSS 入场动画技巧',date:'2026-05-10',url:'',category:'技术',content:'好的入场动画能大幅提升用户体验。本文分享几种实用的 CSS 动画技巧：使用 IntersectionObserver 触发滚动动画、stagger 延迟实现级联效果、cubic-bezier 调出自然动感。'},
+      {id:'a1',title:'从和纸美学到现代网页设计',date:'2026-05-20',url:'',category:'设计',content:'和纸（Washi）是日本传统手工纸，以其独特的纹理和温润的质感闻名。本文将探讨如何将和纸美学融入现代网页设计，从色彩、纹理到光影效果，营造出兼具传统韵味与现代感的数字体验。',featured:true},
+      {id:'a2',title:'scroll-snap 全屏滚动实践',date:'2026-05-15',url:'',category:'技术',content:'CSS scroll-snap 提供了一种声明式的方式来实现滚动捕捉效果。本文记录在实际项目中使用 scroll-snap 的踩坑经历，包括兼容性处理、与 JavaScript 滚动的交互问题，以及最终的替代方案。',featured:true},
+      {id:'a3',title:'CSS 入场动画技巧',date:'2026-05-10',url:'',category:'技术',content:'好的入场动画能大幅提升用户体验。本文分享几种实用的 CSS 动画技巧：使用 IntersectionObserver 触发滚动动画、stagger 延迟实现级联效果、cubic-bezier 调出自然动感。',featured:false},
     ],
     gallery:[],
     experience:[
@@ -70,6 +70,9 @@ const App = {
       if (d.profile && d.profile.skills && !d.skills) {
         d.skills = d.profile.skills;
       }
+      // Migrate featured field for works/articles
+      (d.works||[]).forEach(w => { if (w.featured === undefined) w.featured = false; });
+      (d.articles||[]).forEach(a => { if (a.featured === undefined) a.featured = false; });
       this.obs = new IntersectionObserver(e=>{e.forEach(e=>{if(e.isIntersecting)e.target.classList.add('iv');})},{threshold:0.05});
       this.render();
       this.bind();
@@ -195,8 +198,10 @@ const App = {
     }
 
     let html = (filtered.length ? filtered.map(w=>`
-      <div class="w-card" data-id="${w.id}"${this.editMode?' draggable="true"':''}>
+      <div class="w-card${w.featured?' w-featured':''}" data-id="${w.id}"${this.editMode?' draggable="true"':''}>
+        ${!this.editMode&&w.featured?'<div class="w-featured-badge">★ 精选</div>':''}
         <div class="w-card-acts">
+          ${this.editMode?`<button class="w-card-btn${w.featured?' featured':''}" data-act="fw" data-id="${w.id}">${w.featured?'★':'☆'}</button>`:''}
           <button class="w-card-btn" data-act="ew" data-id="${w.id}">✎</button>
           <button class="w-card-btn del" data-act="dw" data-id="${w.id}">✕</button>
         </div>
@@ -233,11 +238,12 @@ const App = {
     }
 
     l.innerHTML = filterHtml + (filtered.length ? filtered.map(a=>
-      `<div class="a-item" data-id="${a.id}"${this.editMode?' draggable="true"':''}>
+      `<div class="a-item${a.featured?' a-featured':''}" data-id="${a.id}"${this.editMode?' draggable="true"':''}>
         <span class="a-date">${a.date}</span>
-        <span class="a-title">${esc(a.title)}</span>
+        <span class="a-title">${esc(a.title)}${!this.editMode&&a.featured?' <span class="a-featured-star">★</span>':''}</span>
         ${a.url?`<a href="${esc(a.url)}" class="a-ext-link" target="_blank">Read →</a>`:''}
         <div class="a-acts">
+          ${this.editMode?`<button class="a-btn${a.featured?' featured':''}" data-act="fa" data-id="${a.id}">${a.featured?'★':'☆'}</button>`:''}
           <button class="a-btn" data-act="ea" data-id="${a.id}">✎</button>
           <button class="a-btn del" data-act="da" data-id="${a.id}">✕</button>
         </div>
@@ -258,22 +264,32 @@ const App = {
 
   renderHomePreview() {
     const d = this.store.data;
-    // Works preview (top 3)
-    const ws = d.works.sort((a,b)=>a.order-b.order).slice(0,3);
-    $('hpWorks').innerHTML = ws.map(w => `
-      <div class="hp-work">
-        <span class="hp-w-title">${esc(w.title)}</span>
-        ${w.tags?.length ? `<div class="hp-w-tags">${w.tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
-      </div>
-    `).join('');
-    // Articles preview (top 3)
-    const as = d.articles.slice(0,3);
-    $('hpArticles').innerHTML = as.map(a => `
-      <div class="hp-article">
-        <span class="hp-a-date">${a.date||''}</span>
-        <span class="hp-a-title">${esc(a.title)}</span>
-      </div>
-    `).join('');
+    // Works preview: featured items, fallback to top 3
+    let ws = d.works.filter(w=>w.featured).sort((a,b)=>a.order-b.order);
+    if (!ws.length) ws = d.works.sort((a,b)=>a.order-b.order).slice(0,3);
+    if (ws.length) {
+      $('hpWorks').innerHTML = ws.map(w => `
+        <div class="hp-work" data-id="${w.id}">
+          <span class="hp-w-title">${esc(w.title)}</span>
+          ${w.tags?.length ? `<div class="hp-w-tags">${w.tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
+        </div>
+      `).join('');
+    } else {
+      $('hpWorks').innerHTML = '<div style="color:var(--t3);font-size:0.8rem">暂无作品</div>';
+    }
+    // Articles preview: featured items, fallback to top 3
+    let as = d.articles.filter(a=>a.featured);
+    if (!as.length) as = d.articles.slice(0,3);
+    if (as.length) {
+      $('hpArticles').innerHTML = as.map(a => `
+        <div class="hp-article" data-id="${a.id}">
+          <span class="hp-a-date">${a.date||''}</span>
+          <span class="hp-a-title">${esc(a.title)}</span>
+        </div>
+      `).join('');
+    } else {
+      $('hpArticles').innerHTML = '<div style="color:var(--t3);font-size:0.8rem">暂无文章</div>';
+    }
     // Skills
     $('hpSkills').innerHTML = this._skills().map(s => `<span class="tag">${esc(s)}</span>`).join('');
     // Observe animations
@@ -748,8 +764,10 @@ const App = {
         const id = act.dataset.id;
         if (act.dataset.act==='ew') { this.modalWork(id); return; }
         if (act.dataset.act==='dw') { this.delWork(id); return; }
+        if (act.dataset.act==='fw') { this.toggleFeaturedWork(id); return; }
         if (act.dataset.act==='ea') { this.modalArticle(id); return; }
         if (act.dataset.act==='da') { this.delArticle(id); return; }
+        if (act.dataset.act==='fa') { this.toggleFeaturedArticle(id); return; }
         if (act.dataset.act==='eg') { this.modalGalleryImage(id); return; }
         if (act.dataset.act==='dg') { this.delGalleryImage(id); return; }
       }
@@ -804,16 +822,14 @@ const App = {
       // Home preview → detail
       const hpw = t.closest('.hp-work');
       if (hpw) {
-        const idx = Array.from(hpw.parentNode.children).indexOf(hpw);
-        const ws = this.store.data.works.sort((a,b)=>a.order-b.order);
-        if (ws[idx]) { this.switchPage('works'); this.showWorkDetail(ws[idx].id); }
+        const wid = hpw.dataset.id;
+        if (wid) { this.switchPage('works'); this.showWorkDetail(wid); }
         return;
       }
       const hpa = t.closest('.hp-article');
       if (hpa) {
-        const idx = Array.from(hpa.parentNode.children).indexOf(hpa);
-        const as = this.store.data.articles;
-        if (as[idx]) { this.switchPage('articles'); this.showArticleDetail(as[idx].id); }
+        const aid = hpa.dataset.id;
+        if (aid) { this.switchPage('articles'); this.showArticleDetail(aid); }
         return;
       }
 
@@ -1170,6 +1186,26 @@ const App = {
     if (!confirm('确认删除此文章？')) return;
     this.store.data.articles = this.store.data.articles.filter(a=>a.id!==id);
     this.store.save(); this.renderArticles(); this.renderHomePreview(); this.toast('已删除');
+  },
+
+  toggleFeaturedWork(id) {
+    const w = this.store.data.works.find(x=>x.id===id);
+    if (!w) return;
+    w.featured = !w.featured;
+    this.store.save();
+    this.renderWorks();
+    this.renderHomePreview();
+    this.toast(w.featured ? '⭐ 已设为精选' : '已取消精选');
+  },
+
+  toggleFeaturedArticle(id) {
+    const a = this.store.data.articles.find(x=>x.id===id);
+    if (!a) return;
+    a.featured = !a.featured;
+    this.store.save();
+    this.renderArticles();
+    this.renderHomePreview();
+    this.toast(a.featured ? '⭐ 已设为精选' : '已取消精选');
   },
 
   // ===== CONTACT / SOCIAL / SKILL =====
