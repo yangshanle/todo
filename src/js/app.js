@@ -1342,7 +1342,7 @@ const App = {
     return this._qiniuAk + ':' + sign + ':' + encoded;
   },
 
-  // Save to Qiniu
+  // Save to Qiniu (form upload)
   async _qiniuSave() {
     if (!this._qiniuConnected) return;
     if (this._qiniuBusy) return;
@@ -1350,20 +1350,24 @@ const App = {
     try {
       const token = await this._qiniuToken();
       const json = JSON.stringify(this.store.data, null, 2);
-      const res = await fetch('https://upload.qiniup.com/put/data.json', {
-        method:'PUT',
-        headers:{'Authorization':'UpToken '+token,'Content-Type':'application/json'},
-        body: json,
+      const fd = new FormData();
+      fd.append('token', token);
+      fd.append('key', 'data.json');
+      fd.append('file', new Blob([json], {type:'application/json'}));
+      const res = await fetch('https://upload.qiniup.com/', {
+        method:'POST',
+        body: fd,
       });
-      if (res.ok) {
+      const result = await res.json();
+      if (res.ok && result.key) {
         const now = new Date().toLocaleString();
         this._qiniuLastSync = now;
         localStorage.setItem('portfolio_qiniu_stamp', now);
         this._showSyncIndicator(true);
       } else {
-        console.warn('[qiniu] save failed:', res.status);
+        console.warn('[qiniu] save failed:', result);
         this._showSyncIndicator(false);
-        this.toast('❌ 同步失败 (HTTP '+res.status+')');
+        this.toast('❌ 同步失败: ' + (result.error||'未知错误'));
       }
     } catch(e) {
       console.warn('[qiniu] error:', e);
