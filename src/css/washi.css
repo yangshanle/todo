@@ -985,7 +985,12 @@ body {
   border-radius: var(--radius) var(--radius) 0 0; 
   overflow: hidden; 
   cursor: zoom-in;
-  aspect-ratio: 16/10;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--b2);
+  min-height: 80px;
+  max-height: 240px;
 }
 .w-card-img img { 
   width: 100%; 
@@ -1784,7 +1789,9 @@ img.lazy-placeholder {
   .contact { max-width: 100%; }
   .w-grid { gap: 10px; }
   .g-grid { grid-template-columns: 1fr; gap: 10px; }
-  .ab-stats { grid-template-columns: repeat(2, 1fr); max-width: 320px; margin-left: auto; margin-right: auto; }
+  .ab-stats { grid-template-columns: repeat(4, 1fr); max-width: 100%; gap: 6px; }
+  .ab-stat { padding: 6px 4px; font-size: 0.7rem; }
+  .ab-stat-icon { font-size: 1rem; }
   .deco-circle { width: 100px; height: 100px; top: 4%; left: 3%; }
   .deco-triangle { border-left-width: 40px; border-right-width: 40px; border-bottom-width: 70px; bottom: 8%; right: 3%; }
   .formula:nth-child(2),
