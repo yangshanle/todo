@@ -6,8 +6,9 @@
   <title>Portfolio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="src/css/washi.css?v=9">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Inter:wght@300;400;500;600&family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Inter:wght@300;400;500;600&family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&display=swap"></noscript>
+  <link rel="stylesheet" href="src/css/washi.css?v=13">
 </head>
 <body>
 
@@ -43,7 +44,19 @@
           <div class="sb-tail"></div>
         </div>
         <div class="home-av" id="avDisplay">👤</div>
-        <h1 id="dispName">Your Name</h1>
+        <div class="pg-title-wrap">
+          <div class="title-decoration">
+            <div class="decor-line"></div>
+            <div class="decor-dot"></div>
+            <div class="decor-line"></div>
+          </div>
+          <h1 id="dispName">Your Name</h1>
+          <div class="title-decoration">
+            <div class="decor-line"></div>
+            <div class="decor-dot"></div>
+            <div class="decor-line"></div>
+          </div>
+        </div>
         <p class="home-sub" id="dispTitle">Designer / Developer</p>
         <p class="home-bio" id="dispBio">Crafting digital experiences with code and creativity.</p>
         <div class="home-soc" id="heroSoc"></div>
@@ -71,7 +84,34 @@
     <div class="page" id="page-works">
       <div class="page-inner">
         <div class="p-deco"></div>
-        <h2 class="pg-title">Works</h2>
+        <!-- Decorations -->
+        <div class="works-decoration works-left">
+          <div class="dec-circle dec-1"></div>
+          <div class="dec-circle dec-2"></div>
+          <div class="dec-line dec-l-1"></div>
+          <div class="dec-line dec-l-2"></div>
+        </div>
+        <div class="works-decoration works-right">
+          <div class="dec-triangle dec-t-1"></div>
+          <div class="dec-triangle dec-t-2"></div>
+          <div class="dec-circle dec-3"></div>
+          <div class="dec-line dec-l-3"></div>
+        </div>
+        <div class="pg-title-wrap">
+          <div class="title-decoration">
+            <div class="decor-line"></div>
+            <div class="decor-dot"></div>
+            <div class="decor-line"></div>
+            <div class="decor-dot"></div>
+          </div>
+          <h2 class="pg-title">Works</h2>
+          <div class="title-decoration">
+            <div class="decor-dot"></div>
+            <div class="decor-line"></div>
+            <div class="decor-dot"></div>
+            <div class="decor-line"></div>
+          </div>
+        </div>
         <p class="pg-sub">精选项目</p>
         <div class="search-bar"><input type="text" class="search-input" id="wSearch" placeholder="搜索作品..." autocomplete="off"></div>
         <div class="w-grid" id="wGrid"></div>
@@ -83,7 +123,21 @@
     <div class="page" id="page-articles">
       <div class="page-inner">
         <div class="p-deco"></div>
-        <h2 class="pg-title">Articles</h2>
+        <div class="pg-title-wrap">
+          <div class="title-decoration">
+            <div class="decor-line"></div>
+            <div class="decor-dot"></div>
+            <div class="decor-line"></div>
+            <div class="decor-dot"></div>
+          </div>
+          <h2 class="pg-title">Articles</h2>
+          <div class="title-decoration">
+            <div class="decor-dot"></div>
+            <div class="decor-line"></div>
+            <div class="decor-dot"></div>
+            <div class="decor-line"></div>
+          </div>
+        </div>
         <p class="pg-sub">笔记与分享</p>
         <div class="search-bar"><input type="text" class="search-input" id="aSearch" placeholder="搜索文章..." autocomplete="off"></div>
         <div class="a-list" id="aList"></div>
@@ -123,6 +177,19 @@
         <div class="p-deco"></div>
         <h2 class="pg-title">Gallery</h2>
         <p class="pg-sub">影像存档</p>
+        
+        <!-- Poetry Carousel Module -->
+        <div class="poetry-carousel" id="poetryCarousel">
+          <div class="poetry-character" id="poetryCharacter">👘</div>
+          <div class="poetry-content">
+            <div class="poetry-text" id="poetryText"></div>
+            <div class="poetry-author" id="poetryAuthor"></div>
+          </div>
+          <button class="poetry-nav poetry-prev" id="poetryPrev">‹</button>
+          <button class="poetry-nav poetry-next" id="poetryNext">›</button>
+          <div class="poetry-indicator" id="poetryIndicator"></div>
+        </div>
+        
         <div class="g-grid" id="gGrid"></div>
         <div class="empty-msg" id="gEmpty">暂无图片 ✎ 开启编辑添加</div>
       </div>
@@ -188,6 +255,6 @@
     <div class="gv-counter" id="gvCounter"></div>
   </div>
 
-  <script src="src/js/app.js?v=10"></script>
+  <script src="src/js/app.js?v=13"></script>
 </body>
 </html>

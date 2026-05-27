@@ -25,6 +25,8 @@ const App = {
   _ossSk: '',
   _ossBusy: false,
   _ossLastSync: '',
+  _poetryIdx: 0,
+  _poetryList: [],
   genId: () => 'i_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
 
   defaults: {
@@ -76,6 +78,20 @@ const App = {
       (d.works||[]).forEach(w => { if (w.featured === undefined) w.featured = false; });
       (d.articles||[]).forEach(a => { if (a.featured === undefined) a.featured = false; });
       this.obs = new IntersectionObserver(e=>{e.forEach(e=>{if(e.isIntersecting)e.target.classList.add('iv');})},{threshold:0.05});
+      // Image lazy loading observer
+      this.imgObs = new IntersectionObserver(e=>{
+        e.forEach(entry => {
+          if (entry.isIntersecting) {
+            const img = entry.target;
+            if (img.dataset.src) {
+              img.src = img.dataset.src;
+              img.removeAttribute('data-src');
+              img.classList.add('loaded');
+              this.imgObs.unobserve(img);
+            }
+          }
+        });
+      }, {threshold:0.1, rootMargin:'50px'});
       this.render();
       this.bind();
       this.loadTheme();
@@ -199,8 +215,15 @@ const App = {
       filtered=filtered.filter(w=>w.title.toLowerCase().includes(q)||(w.desc||'').toLowerCase().includes(q)||(w.tags||[]).some(t=>t.toLowerCase().includes(q)));
     }
 
-    let html = (filtered.length ? filtered.map(w=>`
-      <div class="w-card${w.featured?' w-featured':''}" data-id="${w.id}"${this.editMode?' draggable="true"':''}>
+    const getCardSize = (index, featured) => {
+      if (featured) return ' large';
+      const pattern = [0, 1, 0, 2, 1, 0, 2, 1];
+      const sizes = ['', ' tall', ' wide'];
+      return sizes[pattern[index % pattern.length]] || '';
+    };
+    
+    let html = (filtered.length ? filtered.map((w, i)=>`
+      <div class="w-card${w.featured?' w-featured':''}${getCardSize(i, w.featured)}" data-id="${w.id}"${this.editMode?' draggable="true"':''}>
         ${!this.editMode&&w.featured?'<div class="w-featured-badge">★ 精选</div>':''}
         <div class="w-card-acts">
           ${this.editMode?`<button class="w-card-btn${w.featured?' featured':''}" data-act="fw" data-id="${w.id}">${w.featured?'★':'☆'}</button>`:''}
@@ -271,7 +294,8 @@ const App = {
     if (!ws.length) ws = d.works.sort((a,b)=>a.order-b.order).slice(0,3);
     if (ws.length) {
       $('hpWorks').innerHTML = ws.map(w => `
-        <div class="hp-work" data-id="${w.id}">
+        <div class="hp-work ${w.featured ? 'featured' : ''}" data-id="${w.id}">
+          ${w.featured ? '<span class="star-badge">⭐</span>' : ''}
           <span class="hp-w-title">${esc(w.title)}</span>
           ${w.tags?.length ? `<div class="hp-w-tags">${w.tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
         </div>
@@ -284,7 +308,8 @@ const App = {
     if (!as.length) as = d.articles.slice(0,3);
     if (as.length) {
       $('hpArticles').innerHTML = as.map(a => `
-        <div class="hp-article" data-id="${a.id}">
+        <div class="hp-article ${a.featured ? 'featured' : ''}" data-id="${a.id}">
+          ${a.featured ? '<span class="star-badge">⭐</span>' : ''}
           <span class="hp-a-date">${a.date||''}</span>
           <span class="hp-a-title">${esc(a.title)}</span>
         </div>
@@ -439,12 +464,51 @@ const App = {
     if (this.editMode) return;
     const a = this.store.data.articles.find(x=>x.id===id);
     if (!a) return;
+    
+    // Parse content to handle images and text
+    let contentHtml = '';
+    if (a.content) {
+      // Match image URLs (http/https URLs ending with image extensions or base64)
+      const imgPattern = /(https?:\/\/[^\s<>"]+\.(?:jpg|jpeg|png|gif|webp|svg))|data:image\/[^;]+;base64,[^\s<>"]+/gi;
+      let lastIndex = 0;
+      let match;
+      const content = a.content;
+      
+      // Process content with images
+      while ((match = imgPattern.exec(content)) !== null) {
+        // Add text before image
+        if (match.index > lastIndex) {
+          const textBefore = content.slice(lastIndex, match.index).trim();
+          if (textBefore) {
+            contentHtml += `<p style="margin:12px 0;line-height:1.8">${esc(textBefore)}</p>`;
+          }
+        }
+        // Add image
+        contentHtml += `<img src="${match[0]}" alt="文章图片" class="article-detail-img" onclick="App.showLightbox(this.src)">`;
+        lastIndex = match.index + match[0].length;
+      }
+      // Add remaining text
+      if (lastIndex < content.length) {
+        const remainingText = content.slice(lastIndex).trim();
+        if (remainingText) {
+          contentHtml += `<p style="margin:12px 0;line-height:1.8">${esc(remainingText)}</p>`;
+        }
+      }
+      
+      // If no images found, just escape and display as text
+      if (!contentHtml) {
+        contentHtml = `<div style="line-height:1.8;white-space:pre-wrap">${esc(a.content)}</div>`;
+      }
+    } else {
+      contentHtml = '<div style="color:var(--t3);font-style:italic">暂无内容</div>';
+    }
+    
     this.modal({
       wide: true,
       title: `📝 ${a.title}`,
       body: `
         <div style="font-size:0.78rem;color:var(--t3);margin-bottom:12px">${a.date||''}${a.category?` · ${esc(a.category)}`:''}</div>
-        ${a.content?`<div style="font-size:0.88rem;line-height:1.8;color:var(--t2);white-space:pre-wrap">${esc(a.content)}</div>`:'<div style="color:var(--t3);font-style:italic">暂无内容</div>'}
+        <div style="font-size:0.88rem;color:var(--t2)">${contentHtml}</div>
         ${a.url?`<div style="margin-top:12px"><a href="${esc(a.url)}" class="w-link" target="_blank">🔗 阅读原文</a></div>`:''}
       `,
       footer: [{label:'关闭',cls:'btn-s',action:()=>this.closeModal()}],
@@ -457,10 +521,10 @@ const App = {
     // Stats
     const maxN = Math.max(d.works.length, d.articles.length, d.gallery.length, this._skills().length, 1);
     $('abStats').innerHTML = `
-      <div class="ab-stat" style="--pct:${d.works.length/maxN*100}%"><span class="ab-stat-n">${d.works.length}</span><span class="ab-stat-l">作品</span></div>
-      <div class="ab-stat" style="--pct:${d.articles.length/maxN*100}%"><span class="ab-stat-n">${d.articles.length}</span><span class="ab-stat-l">文章</span></div>
-      <div class="ab-stat" style="--pct:${d.gallery.length/maxN*100}%"><span class="ab-stat-n">${d.gallery.length}</span><span class="ab-stat-l">影像</span></div>
-      <div class="ab-stat" style="--pct:${this._skills().length/maxN*100}%"><span class="ab-stat-n">${this._skills().length}</span><span class="ab-stat-l">技能</span></div>
+      <div class="ab-stat" style="--pct:${d.works.length/maxN*100}%"><span class="ab-stat-icon">📦</span><span class="ab-stat-n">${d.works.length}</span><span class="ab-stat-l">作品</span></div>
+      <div class="ab-stat" style="--pct:${d.articles.length/maxN*100}%"><span class="ab-stat-icon">📝</span><span class="ab-stat-n">${d.articles.length}</span><span class="ab-stat-l">文章</span></div>
+      <div class="ab-stat" style="--pct:${d.gallery.length/maxN*100}%"><span class="ab-stat-icon">🖼</span><span class="ab-stat-n">${d.gallery.length}</span><span class="ab-stat-l">影像</span></div>
+      <div class="ab-stat" style="--pct:${this._skills().length/maxN*100}%"><span class="ab-stat-icon">⚡</span><span class="ab-stat-n">${this._skills().length}</span><span class="ab-stat-l">技能</span></div>
     `;
     // Timeline (experience + education)
     const tl = [...(d.experience||[]), ...(d.education||[])]
@@ -591,6 +655,14 @@ const App = {
       const y = window.pageYOffset;
       if (hpDeco) hpDeco.style.transform = `translateY(${y*0.04}px)`;
       nav.classList.toggle('nav-scrolled', y > 60);
+      
+      // Scroll animations
+      document.querySelectorAll('.scroll-animate').forEach(el => {
+        const rect = el.getBoundingClientRect();
+        if (rect.top < window.innerHeight * 0.85) {
+          el.classList.add('in-view');
+        }
+      });
     };
 
     window.addEventListener('scroll', ()=>{
@@ -599,6 +671,9 @@ const App = {
         ticking = true;
       }
     }, { passive: true });
+
+    // Initial check
+    handler();
   },
 
   // ===== DECORATIONS =====
@@ -709,7 +784,10 @@ const App = {
     const pg = $('page-'+name);
     if (pg) pg.classList.add('active');
     document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.page===name));
-    if (name === 'gallery') this.renderGallery();
+    if (name === 'gallery') {
+      this.renderGallery();
+      this.initPoetryCarousel();
+    }
     if (name === 'about') this.renderAboutExtras();
   },
 
@@ -737,6 +815,10 @@ const App = {
 
     // Close password modal on overlay click
     $('pwModal').addEventListener('click', e=>{ if(e.target===e.currentTarget) $('pwModal').style.display='none'; });
+
+    // Poetry carousel navigation
+    $('poetryPrev').addEventListener('click', ()=>this.poetryNav(-1));
+    $('poetryNext').addEventListener('click', ()=>this.poetryNav(1));
 
     // Delegated clicks
     document.addEventListener('click', e=>{
@@ -1319,7 +1401,7 @@ const App = {
     this._ossSk = sk ? atob(sk) : '';
     this._ossConnected = !!(this._ossBucket && this._ossRegion && this._ossAk && this._ossSk);
     this._ossLastSync = localStorage.getItem('portfolio_oss_stamp') || '';
-    // Load from OSS silently (for visitors)
+    // Load from OSS silently (for visitors) - with timeout for offline
     this._ossLoad();
   },
 
@@ -1374,11 +1456,24 @@ const App = {
     this._ossBusy = false;
   },
 
-  // Load from OSS (anonymous GET)
+  // Load from OSS (anonymous GET) - with offline support
   async _ossLoad() {
+    // Check network status first
+    if (!navigator.onLine) {
+      console.log('[oss] offline, skipping cloud load');
+      return;
+    }
+    
     try {
       const url = 'https://' + this._ossBucket + '.' + this._ossRegion + '.aliyuncs.com/data.json?_cb='+Date.now();
-      const r = await fetch(url, {cache:'no-store'});
+      
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+      
+      const r = await fetch(url, {cache:'no-store', signal: controller.signal});
+      clearTimeout(timeoutId);
+      
       if (!r.ok) { console.log('[oss] no data.json yet'); return; }
       const data = await r.json();
       if (!data||!data.profile) return;
@@ -1386,7 +1481,13 @@ const App = {
       this.store.d = data;
       try { localStorage.setItem(this.store.key, JSON.stringify(data)); } catch(e) { console.warn(e); }
       this.render();
-    } catch(e) { console.warn('[oss] load error:', e); }
+    } catch(e) { 
+      if (e.name === 'AbortError') {
+        console.log('[oss] load timeout, skipping');
+      } else {
+        console.warn('[oss] load error:', e.message); 
+      }
+    }
   },
 
   _connectOSS() {
@@ -1575,6 +1676,96 @@ const App = {
     if (sk) return sk;
     // Fallback for old data with skills inside profile
     return this.store.data.profile?.skills || [];
+  },
+
+  // ===== POETRY CAROUSEL =====
+  _defaultPoetry: [
+    { text: '床前明月光，疑是地上霜。举头望明月，低头思故乡。', author: '李白《静夜思》', char: '🌙' },
+    { text: '明月几时有？把酒问青天。不知天上宫阙，今夕是何年。', author: '苏轼《水调歌头》', char: '🍶' },
+    { text: '人生若只如初见，何事秋风悲画扇。等闲变却故人心，却道故人心易变。', author: '纳兰性德《木兰词》', char: '💔' },
+    { text: '曾经沧海难为水，除却巫山不是云。取次花丛懒回顾，半缘修道半缘君。', author: '元稹《离思》', char: '💕' },
+    { text: '海上生明月，天涯共此时。情人怨遥夜，竟夕起相思。', author: '张九龄《望月怀远》', char: '🌊' },
+    { text: '春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少。', author: '孟浩然《春晓》', char: '🐦' },
+    { text: '空山不见人，但闻人语响。返景入深林，复照青苔上。', author: '王维《鹿柴》', char: '🏔️' },
+    { text: '大漠孤烟直，长河落日圆。萧关逢候骑，都护在燕然。', author: '王维《使至塞上》', char: '🐪' },
+  ],
+
+  initPoetryCarousel() {
+    // Load poetry from data.json if available, otherwise use defaults
+    this._poetryList = this.store.data.poetry || this._defaultPoetry;
+    
+    // Initialize index
+    this._poetryIdx = 0;
+    
+    // Render first poem
+    this._renderPoetry();
+    
+    // Render indicator dots
+    this._renderPoetryIndicator();
+  },
+
+  _renderPoetry() {
+    const poem = this._poetryList[this._poetryIdx];
+    if (!poem) return;
+
+    const textEl = $('poetryText');
+    const authorEl = $('poetryAuthor');
+    const charEl = $('poetryCharacter');
+
+    // Add fade out animation
+    textEl.style.opacity = '0';
+    authorEl.style.opacity = '0';
+    charEl.style.opacity = '0';
+
+    setTimeout(() => {
+      // Update content
+      textEl.textContent = poem.text || '';
+      authorEl.textContent = poem.author || '';
+      charEl.textContent = poem.char || '👘';
+      charEl.style.animation = 'none';
+      
+      // Reset and trigger fade in
+      textEl.style.animation = 'none';
+      authorEl.style.animation = 'none';
+      
+      requestAnimationFrame(() => {
+        charEl.style.animation = 'characterFloat 3s ease-in-out forwards';
+        textEl.style.animation = 'poetryFadeIn 0.6s ease-out forwards';
+        authorEl.style.animation = 'poetryFadeIn 0.6s ease-out 0.1s forwards';
+      });
+    }, 200);
+  },
+
+  _renderPoetryIndicator() {
+    const indicator = $('poetryIndicator');
+    indicator.innerHTML = this._poetryList.map((_, i) => 
+      `<span class="dot ${i === this._poetryIdx ? 'active' : ''}" data-idx="${i}"></span>`
+    ).join('');
+
+    // Add click events for dots
+    indicator.querySelectorAll('.dot').forEach(dot => {
+      dot.addEventListener('click', () => {
+        this._poetryIdx = parseInt(dot.dataset.idx);
+        this._renderPoetry();
+        this._renderPoetryIndicator();
+      });
+    });
+  },
+
+  poetryNav(delta) {
+    const newIdx = this._poetryIdx + delta;
+    
+    // Loop around
+    if (newIdx < 0) {
+      this._poetryIdx = this._poetryList.length - 1;
+    } else if (newIdx >= this._poetryList.length) {
+      this._poetryIdx = 0;
+    } else {
+      this._poetryIdx = newIdx;
+    }
+    
+    this._renderPoetry();
+    this._renderPoetryIndicator();
   },
 };
 
