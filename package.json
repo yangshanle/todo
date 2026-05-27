@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "puppeteer": "^25.0.4"
+    "puppeteer": "^25.0.4",
+    "qiniu": "^7.15.2"
   }
 }
