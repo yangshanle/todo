@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🦖 Dino Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Courier New', monospace; 
+      background: #000; 
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .game-container {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+    }
+    
+    canvas {
+      display: block;
+      width: 100%;
+      max-width: 500px;
+      height: 200px;
+      background: #000;
+      border: 2px solid #333;
+      border-radius: 8px;
+    }
+    
+    .score-bar {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 15px;
+      margin-bottom: 10px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+    }
+    
+    .score, .highscore {
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    
+    .overlay {
+      position: absolute;
+      top: 40px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 10;
+    }
+    
+    .overlay.hidden {
+      display: none;
+    }
+    
+    .overlay-content {
+      text-align: center;
+      color: #fff;
+    }
+    
+    .title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+    }
+    
+    .subtitle {
+      font-size: 0.95rem;
+      color: #aaa;
+      margin-bottom: 8px;
+    }
+    
+    .hint {
+      font-size: 0.8rem;
+      color: #666;
+    }
+    
+    .nav-links {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    .nav-link {
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 99px;
+      color: #fff;
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: all 0.3s;
+    }
+    
+    .nav-link:hover {
+      background: rgba(255,107,107,0.3);
+      border-color: #ff6b6b;
+    }
+    
+    .back-home {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 99px;
+      color: #fff;
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: all 0.3s;
+    }
+    
+    .back-home:hover {
+      background: rgba(184,148,92,0.3);
+      border-color: #b8945c;
+    }
+  </style>
+</head>
+<body>
+  <a href="../index.html" class="back-home">🏠 返回首页</a>
+  
+  <div class="game-container">
+    <div class="score-bar">
+      <div class="highscore">📊 <span id="highscore">0</span></div>
+      <div class="score">🏆 <span id="score">0</span></div>
+    </div>
+    <canvas id="canvas"></canvas>
+    <div class="overlay" id="overlay">
+      <div class="overlay-content">
+        <div class="title">🦖 DINO GAME</div>
+        <div class="subtitle">按 空格键 或 点击 开始</div>
+        <div class="hint">空格跳跃 · 躲避障碍物</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="nav-links">
+    <a href="tetris.html" class="nav-link">🧱 Tetris</a>
+    <a href="breakout.html" class="nav-link">🎯 Breakout</a>
+    <a href="2048.html" class="nav-link">🔢 2048</a>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const highscoreEl = document.getElementById('highscore');
+    const overlay = document.getElementById('overlay');
+    
+    canvas.width = 500;
+    canvas.height = 200;
+    
+    let score = 0;
+    let highscore = parseInt(localStorage.getItem('dino_highscore') || '0');
+    highscoreEl.textContent = highscore;
+    
+    let running = false;
+    let dino = { x: 50, y: 130, width: 40, height: 50, vy: 0, onGround: true };
+    let obstacles = [];
+    let clouds = [];
+    let obstacleSpeed = 4;
+    let obstacleInterval = 2000;
+    let lastObstacle = 0;
+    const groundY = 180;
+    
+    function drawDino() {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(dino.x, dino.y + 10, 20, 8);
+      ctx.fillRect(dino.x + 5, dino.y, 10, 15);
+      ctx.fillRect(dino.x + 20, dino.y + 5, 25, 35);
+      ctx.fillRect(dino.x + 25, dino.y + 40, 8, 10);
+      ctx.fillRect(dino.x + 35, dino.y + 40, 8, 10);
+      ctx.fillRect(dino.x + 35, dino.y + 15, 8, 15);
+      ctx.fillRect(dino.x + 35, dino.y + 10, 5, 5);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(dino.x + 37, dino.y + 12, 2, 2);
+      ctx.fillStyle = '#fff';
+    }
+    
+    function drawCactus(x, y) {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x + 5, y + 20, 8, 20);
+      ctx.fillRect(x, y + 10, 8, 15);
+      ctx.fillRect(x + 12, y + 5, 8, 15);
+      ctx.fillRect(x + 6, y, 6, 12);
+    }
+    
+    function drawBird(x, y) {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x, y + 5, 25, 15);
+      ctx.fillRect(x + 20, y + 8, 15, 7);
+      ctx.fillRect(x - 5, y + 3, 8, 6);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(x + 5, y + 8, 2, 2);
+      ctx.fillStyle = '#fff';
+    }
+    
+    function drawCloud(x, y, size) {
+      ctx.fillStyle = '#666';
+      ctx.beginPath();
+      ctx.arc(x, y, size * 0.3, 0, Math.PI * 2);
+      ctx.arc(x + size * 0.25, y - size * 0.1, size * 0.25, 0, Math.PI * 2);
+      ctx.arc(x + size * 0.5, y, size * 0.3, 0, Math.PI * 2);
+      ctx.arc(x + size * 0.25, y + size * 0.1, size * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    function spawnObstacle() {
+      const type = Math.random() < 0.7 ? 'cactus' : 'bird';
+      obstacles.push({
+        x: 500,
+        type: type,
+        width: type === 'cactus' ? 25 : 35,
+        height: type === 'cactus' ? 40 : 25,
+        y: type === 'cactus' ? groundY - 40 : groundY - 100 - Math.random() * 30
+      });
+    }
+    
+    function checkCollision() {
+      const dr = { x: dino.x + 5, y: dino.y + 5, width: dino.width - 10, height: dino.height - 5 };
+      for (const obs of obstacles) {
+        const or = { x: obs.x + 5, y: obs.y + 5, width: obs.width - 10, height: obs.height - 5 };
+        if (dr.x < or.x + or.width && dr.x + dr.width > or.x && dr.y < or.y + or.height && dr.y + dr.height > or.y) {
+          return true;
+        }
+      }
+      return false;
+    }
+    
+    function gameOver() {
+      running = false;
+      overlay.classList.remove('hidden');
+      overlay.querySelector('.title').textContent = '🦖 GAME OVER';
+      overlay.querySelector('.subtitle').textContent = '得分: ' + score;
+    }
+    
+    function update() {
+      if (!running) return;
+      
+      score++;
+      scoreEl.textContent = score;
+      
+      if (score > highscore) {
+        highscore = score;
+        localStorage.setItem('dino_highscore', highscore.toString());
+        highscoreEl.textContent = highscore;
+      }
+      
+      if (score % 500 === 0 && obstacleSpeed < 12) {
+        obstacleSpeed += 0.5;
+      }
+      
+      dino.vy += 0.5;
+      dino.y += dino.vy;
+      
+      if (dino.y >= groundY - dino.height) {
+        dino.y = groundY - dino.height;
+        dino.vy = 0;
+        dino.onGround = true;
+      }
+      
+      const now = Date.now();
+      if (now - lastObstacle > obstacleInterval) {
+        spawnObstacle();
+        lastObstacle = now;
+      }
+      
+      obstacles.forEach(obs => obs.x -= obstacleSpeed);
+      obstacles = obstacles.filter(obs => obs.x > -50);
+      
+      if (now % 3000 < 100) {
+        clouds.push({ x: 500, y: Math.random() * 60 + 20, size: Math.random() * 20 + 30 });
+      }
+      
+      clouds.forEach(cloud => cloud.x -= 0.5);
+      clouds = clouds.filter(cloud => cloud.x > -60);
+      
+      if (checkCollision()) {
+        gameOver();
+      }
+    }
+    
+    function render() {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, 500, 200);
+      
+      ctx.fillStyle = '#333';
+      ctx.fillRect(0, groundY, 500, 20);
+      
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, groundY + 20, 500, 2);
+      
+      clouds.forEach(cloud => drawCloud(cloud.x, cloud.y, cloud.size));
+      
+      drawDino();
+      
+      obstacles.forEach(obs => {
+        if (obs.type === 'cactus') drawCactus(obs.x, obs.y);
+        else drawBird(obs.x, obs.y);
+      });
+    }
+    
+    function gameLoop() {
+      update();
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+    
+    function start() {
+      score = 0;
+      scoreEl.textContent = '0';
+      running = true;
+      dino = { x: 50, y: 130, width: 40, height: 50, vy: 0, onGround: true };
+      obstacles = [];
+      clouds = [];
+      obstacleSpeed = 4;
+      lastObstacle = Date.now();
+      overlay.classList.add('hidden');
+    }
+    
+    canvas.addEventListener('click', () => {
+      if (!running) {
+        start();
+      } else if (dino.onGround) {
+        dino.vy = -12;
+        dino.onGround = false;
+      }
+    });
+    
+    overlay.addEventListener('click', () => {
+      if (!running) start();
+    });
+    
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!running) {
+          start();
+        } else if (dino.onGround) {
+          dino.vy = -12;
+          dino.onGround = false;
+        }
+      }
+    });
+    
+    gameLoop();
+  </script>
+</body>
+</html>

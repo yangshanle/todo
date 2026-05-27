@@ -94,14 +94,40 @@ const App = {
       }, {threshold:0.1, rootMargin:'50px'});
       this.render();
       this.bind();
+      this.initTabVisibility();
       this.loadTheme();
       this.switchPage('home');
       this.initScrollEffects();
       this.generatePageDecorations();
       this._ossInit();
+      this.initReadCounter();
+      this.initQuotes();
     } catch(e) { console.error('init error:', e); }
     // Easter eggs
     this._initEasterEggs();
+  },
+
+  initReadCounter() {
+    const counter = $('readCounter');
+    const numEl = $('readNum');
+    if (!counter || !numEl) return;
+    
+    const dataCount = this.store.data.galleryReadCount || 0;
+    const storedCount = parseInt(localStorage.getItem('gallery_read_count') || dataCount.toString());
+    numEl.textContent = storedCount.toString();
+    
+    counter.addEventListener('click', () => {
+      let count = parseInt(localStorage.getItem('gallery_read_count') || '0');
+      count++;
+      localStorage.setItem('gallery_read_count', count.toString());
+      this.store.data.galleryReadCount = count;
+      this.store.save();
+      numEl.textContent = count.toString();
+      numEl.style.transform = 'scale(1.2)';
+      setTimeout(() => {
+        numEl.style.transform = 'scale(1)';
+      }, 200);
+    });
   },
 
   _initEasterEggs() {
@@ -215,15 +241,8 @@ const App = {
       filtered=filtered.filter(w=>w.title.toLowerCase().includes(q)||(w.desc||'').toLowerCase().includes(q)||(w.tags||[]).some(t=>t.toLowerCase().includes(q)));
     }
 
-    const getCardSize = (index, featured) => {
-      if (featured) return ' large';
-      const pattern = [0, 1, 0, 2, 1, 0, 2, 1];
-      const sizes = ['', ' tall', ' wide'];
-      return sizes[pattern[index % pattern.length]] || '';
-    };
-    
     let html = (filtered.length ? filtered.map((w, i)=>`
-      <div class="w-card${w.featured?' w-featured':''}${getCardSize(i, w.featured)}" data-id="${w.id}"${this.editMode?' draggable="true"':''}>
+      <div class="w-card${w.featured?' w-featured':''}" data-id="${w.id}"${this.editMode?' draggable="true"':''}>
         ${!this.editMode&&w.featured?'<div class="w-featured-badge">★ 精选</div>':''}
         <div class="w-card-acts">
           ${this.editMode?`<button class="w-card-btn${w.featured?' featured':''}" data-act="fw" data-id="${w.id}">${w.featured?'★':'☆'}</button>`:''}
@@ -544,17 +563,7 @@ const App = {
       `).join(''):'<div style="color:var(--t3);font-size:0.85rem;padding:8px 0">暂无记录</div>'}
       ${this.editMode?'<button class="tl-add" id="tlAdd">+ 添加经历</button>':''}
     `;
-    // Quotes
-    const qs = d.quotes||[];
-    $('aboutQuotes').innerHTML = `
-      <div class="quotes-display">
-        ${qs.length?`<div class="quote-bubble">${esc(this._randQuote(qs))}</div>`:'<div style="color:var(--t3);font-size:0.85rem">暂无语录</div>'}
-      </div>
-      ${this.editMode?`<div class="quotes-edit" style="margin-top:8px"><button class="btn btn-sm btn-s" id="qEdit">✎ 管理语录</button></div>`:''}
-    `;
   },
-
-  _randQuote(qs) { return qs[Math.floor(Math.random()*qs.length)]; },
 
   modalTimelineItem(id) {
     if (!this.editMode) return;
@@ -694,17 +703,20 @@ const App = {
       'O(n log n)','Promise.all()','async await',
       'box-shadow: var(--shadow)','border-radius: 99px',
       ':root { --red: #C73E3A }','@keyframes fadeIn',
+      'tong','TONG','tong','TONG','tong',
+      'liyu','LIYU','liyu','LIYU','liyu',
+      'tong.liyu','TL','tong_liyu','TL.dev',
     ];
     const colors = ['var(--gold)','var(--red)','var(--t3)'];
     const sizes = [0.65, 0.75, 0.85, 0.95, 1.05];
     document.querySelectorAll('.p-deco').forEach(deco => {
       if (deco.children.length) return; // already generated
       const frag = document.createDocumentFragment();
-      // Pick ~18 random items for this page
-      const pool = [...items].sort(()=>Math.random()-0.5).slice(0, 30);
+      const pool = [...items].sort(()=>Math.random()-0.5).slice(0, 35);
       pool.forEach((txt, i) => {
         const el = document.createElement('span');
-        el.className = 'pf';
+        const isWatermark = ['tong','TONG','liyu','LIYU','tong.liyu','TL','tong_liyu','TL.dev'].includes(txt);
+        el.className = isWatermark ? 'pf pf-watermark' : 'pf';
         el.textContent = txt;
         el.style.left = (Math.random() * 82 + 5) + '%';
         el.style.top = (Math.random() * 85 + 5) + '%';
@@ -778,17 +790,1562 @@ const App = {
     $('gvImg').src = '';
   },
 
+  initTabVisibility() {
+    this._originalTitle = document.title;
+    
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        document.title = '你怎么走了喵？';
+      } else {
+        document.title = this._originalTitle;
+      }
+    });
+    
+    document.addEventListener('blur', () => {
+      if (document.hidden) {
+        document.title = '你怎么走了喵？';
+      }
+    });
+    
+    document.addEventListener('focus', () => {
+      document.title = this._originalTitle;
+    });
+  },
+
   // ===== PAGES =====
   switchPage(name) {
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
     const pg = $('page-'+name);
     if (pg) pg.classList.add('active');
     document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.page===name));
+    document.querySelectorAll('.mobile-tab').forEach(t=>t.classList.toggle('active',t.dataset.page===name));
+    
+    this.closeMobileMenu();
+    
     if (name === 'gallery') {
       this.renderGallery();
       this.initPoetryCarousel();
     }
     if (name === 'about') this.renderAboutExtras();
+    if (name === 'dino') this.initDinoGame();
+    if (name === 'tetris') this.initTetrisGame();
+    if (name === 'breakout') this.initBreakoutGame();
+    if (name === 'game2048') this.initGame2048();
+    if (name === 'calendar') this.initCalendar();
+  },
+
+  closeMobileMenu() {
+    const menu = $('mobileMenu');
+    const html = document.querySelector('html');
+    if (menu && menu.classList.contains('show')) {
+      menu.classList.remove('show');
+      html.classList.remove('no-scroll');
+    }
+  },
+
+  // ===== GAME SELECTOR =====
+  bindGameNav() {
+    document.querySelectorAll('.game-nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const page = btn.dataset.page;
+        this.switchPage(page);
+      });
+    });
+  },
+
+  
+
+  // ===== DINO GAME =====
+  _dinoCanvas: null,
+  _dinoCtx: null,
+  _dinoScore: 0,
+  _dinoHighscore: 0,
+  _dinoRunning: false,
+  _dinoPaused: false,
+  
+  _dinoX: 50,
+  _dinoY: 130,
+  _dinoWidth: 40,
+  _dinoHeight: 50,
+  _dinoVelocityY: 0,
+  _dinoGravity: 0.5,
+  _dinoJumpForce: -12,
+  _dinoOnGround: true,
+  
+  _dinoObstacles: [],
+  _dinoObstacleSpeed: 4,
+  _dinoObstacleInterval: 2000,
+  _dinoLastObstacle: 0,
+  
+  _dinoGroundY: 180,
+  _dinoClouds: [],
+  
+  initDinoGame() {
+    this._dinoCanvas = $('dinoCanvas');
+    this._dinoCtx = this._dinoCanvas.getContext('2d');
+    this._dinoCanvas.width = 500;
+    this._dinoCanvas.height = 200;
+    
+    this._dinoHighscore = parseInt(localStorage.getItem('dino_highscore') || '0');
+    $('dinoHighscore').textContent = this._dinoHighscore.toString();
+    
+    this.bindDinoEvents();
+    this.dinoGameLoop();
+  },
+
+  resetDinoGame() {
+    this._dinoScore = 0;
+    this._dinoRunning = false;
+    this._dinoPaused = false;
+    this._dinoX = 50;
+    this._dinoY = 130;
+    this._dinoVelocityY = 0;
+    this._dinoOnGround = true;
+    this._dinoObstacles = [];
+    this._dinoClouds = [];
+    this._dinoObstacleSpeed = 4;
+    $('dinoScore').textContent = '0';
+    $('dinoOverlay').classList.remove('hidden');
+  },
+
+  bindDinoEvents() {
+    const canvas = this._dinoCanvas;
+    canvas.removeEventListener('click', this._dinoCanvasHandler);
+    this._dinoCanvasHandler = () => {
+      if (!this._dinoRunning) {
+        this.startDinoGame();
+      } else if (this._dinoOnGround) {
+        this.dinoJump();
+      }
+    };
+    canvas.addEventListener('click', this._dinoCanvasHandler);
+    
+    document.removeEventListener('keydown', this._dinoKeyHandler);
+    this._dinoKeyHandler = (e) => {
+      if (!document.querySelector('#page-dino.active')) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!this._dinoRunning) {
+          this.startDinoGame();
+        } else if (this._dinoOnGround) {
+          this.dinoJump();
+        }
+      }
+    };
+    document.addEventListener('keydown', this._dinoKeyHandler);
+    
+    const helpBtn = $('dinoHelp');
+    if (helpBtn) {
+      helpBtn.removeEventListener('click', this._dinoHelpHandler);
+      this._dinoHelpHandler = (e) => {
+        e.stopPropagation();
+        this.modal({
+          title: '🦖 恐龙游戏教程',
+          body: `
+            <p style="line-height:1.8;margin-bottom:12px"><strong>🎯 游戏目标：</strong></p>
+            <p style="line-height:1.8;font-size:0.9rem">躲避障碍物，尽可能跑得更远！</p>
+            
+            <p style="line-height:1.8;margin:16px 0 12px;font-weight:600"><strong>🎮 操作说明：</strong></p>
+            <p style="line-height:1.8;font-size:0.9rem"><strong>空格键</strong> 或 <strong>点击画布</strong> 跳跃</p>
+            
+            <p style="line-height:1.8;margin:16px 0 12px;font-weight:600"><strong>🌵 障碍物：</strong></p>
+            <p style="line-height:1.8;font-size:0.9rem">• 仙人掌 - 从地面生长，需要跳跃躲避</p>
+            <p style="line-height:1.8;font-size:0.9rem">• 飞鸟 - 在空中飞行，需要在恰当时机跳跃</p>
+            
+            <p style="line-height:1.8;margin:16px 0 12px;font-weight:600"><strong>💡 技巧提示：</strong></p>
+            <p style="line-height:1.8;font-size:0.85rem">• 观察障碍物出现的节奏</p>
+            <p style="line-height:1.8;font-size:0.85rem">• 尽量跳跃到空白区域</p>
+            <p style="line-height:1.8;font-size:0.85rem">• 难度会随分数增加</p>
+          `,
+          footer: [{label:'开始游戏', cls:'btn-p'}]
+        });
+      };
+      helpBtn.addEventListener('click', this._dinoHelpHandler);
+    }
+  },
+
+  startDinoGame() {
+    this._dinoRunning = true;
+    $('dinoOverlay').classList.add('hidden');
+    this._dinoLastObstacle = Date.now();
+  },
+
+  dinoJump() {
+    if (this._dinoOnGround) {
+      this._dinoVelocityY = this._dinoJumpForce;
+      this._dinoOnGround = false;
+    }
+  },
+
+  dinoGameLoop() {
+    this.dinoUpdate();
+    this.dinoRender();
+    requestAnimationFrame(() => this.dinoGameLoop());
+  },
+
+  dinoUpdate() {
+    if (!this._dinoRunning || this._dinoPaused) return;
+    
+    this._dinoScore++;
+    $('dinoScore').textContent = this._dinoScore.toString();
+    
+    if (this._dinoScore > this._dinoHighscore) {
+      this._dinoHighscore = this._dinoScore;
+      localStorage.setItem('dino_highscore', this._dinoHighscore.toString());
+      $('dinoHighscore').textContent = this._dinoHighscore.toString();
+    }
+    
+    if (this._dinoScore % 500 === 0) {
+      this._dinoObstacleSpeed += 0.5;
+    }
+    
+    this._dinoVelocityY += this._dinoGravity;
+    this._dinoY += this._dinoVelocityY;
+    
+    if (this._dinoY >= this._dinoGroundY - this._dinoHeight) {
+      this._dinoY = this._dinoGroundY - this._dinoHeight;
+      this._dinoVelocityY = 0;
+      this._dinoOnGround = true;
+    }
+    
+    const now = Date.now();
+    if (now - this._dinoLastObstacle > this._dinoObstacleInterval) {
+      this.dinoSpawnObstacle();
+      this._dinoLastObstacle = now;
+    }
+    
+    this._dinoObstacles.forEach(obs => {
+      obs.x -= this._dinoObstacleSpeed;
+    });
+    
+    this._dinoObstacles = this._dinoObstacles.filter(obs => obs.x > -50);
+    
+    if (now % 3000 < 100) {
+      this._dinoClouds.push({
+        x: 500,
+        y: Math.random() * 60 + 20,
+        size: Math.random() * 20 + 30
+      });
+    }
+    
+    this._dinoClouds.forEach(cloud => {
+      cloud.x -= 0.5;
+    });
+    
+    this._dinoClouds = this._dinoClouds.filter(cloud => cloud.x > -60);
+    
+    if (this.dinoCheckCollision()) {
+      this.dinoGameOver();
+    }
+  },
+
+  dinoSpawnObstacle() {
+    const type = Math.random() < 0.7 ? 'cactus' : 'bird';
+    const obstacle = {
+      x: 500,
+      type: type,
+      width: type === 'cactus' ? 25 : 35,
+      height: type === 'cactus' ? 40 : 25,
+      y: type === 'cactus' ? this._dinoGroundY - 40 : this._dinoGroundY - 100 - Math.random() * 30
+    };
+    this._dinoObstacles.push(obstacle);
+  },
+
+  dinoCheckCollision() {
+    const dinoRect = {
+      x: this._dinoX + 5,
+      y: this._dinoY + 5,
+      width: this._dinoWidth - 10,
+      height: this._dinoHeight - 5
+    };
+    
+    for (const obs of this._dinoObstacles) {
+      const obsRect = {
+        x: obs.x + 5,
+        y: obs.y + 5,
+        width: obs.width - 10,
+        height: obs.height - 5
+      };
+      
+      if (this.dinoRectIntersect(dinoRect, obsRect)) {
+        return true;
+      }
+    }
+    return false;
+  },
+
+  dinoRectIntersect(r1, r2) {
+    return r1.x < r2.x + r2.width &&
+           r1.x + r1.width > r2.x &&
+           r1.y < r2.y + r2.height &&
+           r1.y + r1.height > r2.y;
+  },
+
+  dinoGameOver() {
+    this._dinoRunning = false;
+    $('dinoOverlay').classList.remove('hidden');
+    const overlayContent = $('dinoOverlay').querySelector('.dino-overlay-content');
+    overlayContent.innerHTML = `
+      <div class="dino-title">🦖 GAME OVER</div>
+      <div class="dino-subtitle">得分: ${this._dinoScore}</div>
+      <div class="dino-hint">按 空格键 或 点击 重新开始</div>
+    `;
+  },
+
+  dinoRender() {
+    this._dinoCtx.fillStyle = '#000';
+    this._dinoCtx.fillRect(0, 0, 500, 200);
+    
+    this._dinoCtx.fillStyle = '#333';
+    this._dinoCtx.fillRect(0, this._dinoGroundY, 500, 20);
+    
+    this._dinoCtx.fillStyle = '#fff';
+    this._dinoCtx.fillRect(0, this._dinoGroundY + 20, 500, 2);
+    
+    this._dinoCtx.fillStyle = '#666';
+    this._dinoClouds.forEach(cloud => {
+      this.dinoDrawCloud(cloud.x, cloud.y, cloud.size);
+    });
+    
+    this._dinoCtx.fillStyle = '#fff';
+    this.dinoDrawDino(this._dinoX, this._dinoY);
+    
+    this._dinoCtx.fillStyle = '#fff';
+    this._dinoObstacles.forEach(obs => {
+      if (obs.type === 'cactus') {
+        this.dinoDrawCactus(obs.x, obs.y);
+      } else {
+        this.dinoDrawBird(obs.x, obs.y);
+      }
+    });
+  },
+
+  dinoDrawDino(x, y) {
+    this._dinoCtx.fillRect(x, y + 10, 20, 8);
+    this._dinoCtx.fillRect(x + 5, y, 10, 15);
+    this._dinoCtx.fillRect(x + 20, y + 5, 25, 35);
+    this._dinoCtx.fillRect(x + 25, y + 40, 8, 10);
+    this._dinoCtx.fillRect(x + 35, y + 40, 8, 10);
+    this._dinoCtx.fillRect(x + 35, y + 15, 8, 15);
+    this._dinoCtx.fillRect(x + 35, y + 10, 5, 5);
+    this._dinoCtx.fillStyle = '#000';
+    this._dinoCtx.fillRect(x + 37, y + 12, 2, 2);
+    this._dinoCtx.fillStyle = '#fff';
+  },
+
+  dinoDrawCactus(x, y) {
+    this._dinoCtx.fillRect(x + 5, y + 20, 8, 20);
+    this._dinoCtx.fillRect(x, y + 10, 8, 15);
+    this._dinoCtx.fillRect(x + 12, y + 5, 8, 15);
+    this._dinoCtx.fillRect(x + 6, y, 6, 12);
+  },
+
+  dinoDrawBird(x, y) {
+    this._dinoCtx.fillRect(x, y + 5, 25, 15);
+    this._dinoCtx.fillRect(x + 20, y + 8, 15, 7);
+    this._dinoCtx.fillRect(x - 5, y + 3, 8, 6);
+    this._dinoCtx.fillStyle = '#000';
+    this._dinoCtx.fillRect(x + 5, y + 8, 2, 2);
+    this._dinoCtx.fillStyle = '#fff';
+  },
+
+  dinoDrawCloud(x, y, size) {
+    this._dinoCtx.beginPath();
+    this._dinoCtx.arc(x, y, size * 0.3, 0, Math.PI * 2);
+    this._dinoCtx.arc(x + size * 0.25, y - size * 0.1, size * 0.25, 0, Math.PI * 2);
+    this._dinoCtx.arc(x + size * 0.5, y, size * 0.3, 0, Math.PI * 2);
+    this._dinoCtx.arc(x + size * 0.25, y + size * 0.1, size * 0.2, 0, Math.PI * 2);
+    this._dinoCtx.fill();
+  },
+
+  // ===== TETRIS GAME =====
+  _tetrisCanvas: null,
+  _tetrisCtx: null,
+  _tetrisNextCanvas: null,
+  _tetrisNextCtx: null,
+  _tetrisBoard: [],
+  _tetrisCurrentPiece: null,
+  _tetrisNextPiece: null,
+  _tetrisScore: 0,
+  _tetrisLevel: 1,
+  _tetrisLines: 0,
+  _tetrisRunning: false,
+  _tetrisPaused: false,
+  
+  _tetrisCOLS: 10,
+  _tetrisROWS: 20,
+  _tetrisCELL: 20,
+  
+  _tetrisSHAPES: [
+    [[1,1,1,1]],
+    [[1,1],[1,1]],
+    [[1,1,0],[0,1,1]],
+    [[0,1,1],[1,1,0]],
+    [[1,1,1],[0,1,0]],
+    [[1,1,1],[1,0,0]],
+    [[1,1,1],[0,0,1]]
+  ],
+  
+  _tetrisCOLORS: ['#00ffff', '#ffff00', '#ff00ff', '#00ff00', '#ff6b6b', '#4ecdc4', '#45b7d1'],
+
+  resetTetrisGame() {
+    this._tetrisScore = 0;
+    this._tetrisLevel = 1;
+    this._tetrisLines = 0;
+    this._tetrisRunning = false;
+    this._tetrisPaused = false;
+    this._tetrisBoard = Array(this._tetrisROWS).fill(null).map(() => Array(this._tetrisCOLS).fill(0));
+    this._tetrisCurrentPiece = null;
+    this._tetrisNextPiece = null;
+    $('tetrisScore').textContent = '0';
+    $('tetrisLevel').textContent = '1';
+    $('tetrisLines').textContent = '0';
+    this.tetrisDrawBoard();
+    this.tetrisDrawNext(null);
+  },
+
+  initTetrisGame() {
+    this._tetrisCanvas = $('tetrisCanvas');
+    this._tetrisCtx = this._tetrisCanvas.getContext('2d');
+    this._tetrisCanvas.width = this._tetrisCOLS * this._tetrisCELL;
+    this._tetrisCanvas.height = this._tetrisROWS * this._tetrisCELL;
+    
+    this._tetrisNextCanvas = $('tetrisNext');
+    this._tetrisNextCtx = this._tetrisNextCanvas.getContext('2d');
+    this._tetrisNextCanvas.width = 120;
+    this._tetrisNextCanvas.height = 120;
+    
+    this.resetTetrisGame();
+    this.bindTetrisEvents();
+  },
+
+  bindTetrisEvents() {
+    const startBtn = $('tetrisStart');
+    if (startBtn) {
+      startBtn.removeEventListener('click', this._tetrisStartHandler);
+      this._tetrisStartHandler = () => {
+        if (!this._tetrisRunning) {
+          this.startTetris();
+        }
+      };
+      startBtn.addEventListener('click', this._tetrisStartHandler);
+    }
+    
+    const pauseBtn = $('tetrisPause');
+    if (pauseBtn) {
+      pauseBtn.removeEventListener('click', this._tetrisPauseHandler);
+      this._tetrisPauseHandler = () => {
+        this._tetrisPaused = !this._tetrisPaused;
+        pauseBtn.textContent = this._tetrisPaused ? '继续' : '暂停';
+      };
+      pauseBtn.addEventListener('click', this._tetrisPauseHandler);
+    }
+    
+    const helpBtn = $('tetrisHelp');
+    if (helpBtn) {
+      helpBtn.removeEventListener('click', this._tetrisHelpHandler);
+      this._tetrisHelpHandler = () => {
+        this.modal({
+          title: '🧱 俄罗斯方块教程',
+          body: `
+            <p style="line-height:1.8;margin-bottom:12px"><strong>🎯 游戏目标：</strong></p>
+            <p style="line-height:1.8;font-size:0.9rem">消除完整行，获得更高分数！</p>
+            
+            <p style="line-height:1.8;margin:16px 0 12px;font-weight:600"><strong>🎮 操作说明：</strong></p>
+            <p style="line-height:1.8;font-size:0.9rem"><strong>←</strong> 向左移动</p>
+            <p style="line-height:1.8;font-size:0.9rem"><strong>→</strong> 向右移动</p>
+            <p style="line-height:1.8;font-size:0.9rem"><strong>↑</strong> 旋转方块</p>
+            <p style="line-height:1.8;font-size:0.9rem"><strong>↓</strong> 加速下落</p>
+            <p style="line-height:1.8;font-size:0.9rem"><strong>空格</strong> 直接落到底部</p>
+            
+            <p style="line-height:1.8;margin:16px 0 12px;font-weight:600"><strong>💡 技巧提示：</strong></p>
+            <p style="line-height:1.8;font-size:0.85rem">• 尽量堆满整行再消除</p>
+            <p style="line-height:1.8;font-size:0.85rem">• 不要让方块堆得太高</p>
+            <p style="line-height:1.8;font-size:0.85rem">• 一次消除多行得分更高</p>
+          `,
+          footer: [{label:'开始游戏', cls:'btn-p'}]
+        });
+      };
+      helpBtn.addEventListener('click', this._tetrisHelpHandler);
+    }
+    
+    document.removeEventListener('keydown', this._tetrisKeyHandler);
+    this._tetrisKeyHandler = (e) => {
+      if (!document.querySelector('#page-tetris.active')) return;
+      if (!this._tetrisRunning || this._tetrisPaused) return;
+      
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          this.tetrisMoveLeft();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          this.tetrisMoveRight();
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          this.tetrisMoveDown();
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          this.tetrisRotate();
+          break;
+        case ' ':
+          e.preventDefault();
+          this.tetrisHardDrop();
+          break;
+      }
+    };
+    document.addEventListener('keydown', this._tetrisKeyHandler);
+  },
+
+  startTetris() {
+    this._tetrisRunning = true;
+    this._tetrisBoard = Array(this._tetrisROWS).fill(null).map(() => Array(this._tetrisCOLS).fill(0));
+    this._tetrisScore = 0;
+    this._tetrisLevel = 1;
+    this._tetrisLines = 0;
+    this._tetrisCurrentPiece = this.tetrisCreatePiece();
+    this._tetrisNextPiece = this.tetrisCreatePiece();
+    this.tetrisDrawNext(this._tetrisNextPiece);
+    this.tetrisGameLoop();
+  },
+
+  tetrisCreatePiece() {
+    const shapeIndex = Math.floor(Math.random() * this._tetrisSHAPES.length);
+    return {
+      shape: this._tetrisSHAPES[shapeIndex],
+      color: this._tetrisCOLORS[shapeIndex],
+      x: Math.floor((this._tetrisCOLS - this._tetrisSHAPES[shapeIndex][0].length) / 2),
+      y: 0
+    };
+  },
+
+  tetrisGameLoop() {
+    if (!this._tetrisRunning) return;
+    
+    if (!this._tetrisPaused) {
+      setTimeout(() => {
+        if (this._tetrisRunning && !this._tetrisPaused) {
+          this.tetrisMoveDown();
+        }
+      }, Math.max(100, 1000 - (this._tetrisLevel - 1) * 100));
+    }
+    
+    requestAnimationFrame(() => this.tetrisGameLoop());
+  },
+
+  tetrisMoveLeft() {
+    this._tetrisCurrentPiece.x--;
+    if (!this.tetrisIsValidPosition()) {
+      this._tetrisCurrentPiece.x++;
+    } else {
+      this.tetrisDrawBoard();
+    }
+  },
+
+  tetrisMoveRight() {
+    this._tetrisCurrentPiece.x++;
+    if (!this.tetrisIsValidPosition()) {
+      this._tetrisCurrentPiece.x--;
+    } else {
+      this.tetrisDrawBoard();
+    }
+  },
+
+  tetrisMoveDown() {
+    this._tetrisCurrentPiece.y++;
+    if (!this.tetrisIsValidPosition()) {
+      this._tetrisCurrentPiece.y--;
+      this.tetrisLockPiece();
+      this.tetrisClearLines();
+      this.tetrisSpawnPiece();
+    } else {
+      this.tetrisDrawBoard();
+    }
+  },
+
+  tetrisHardDrop() {
+    while (this.tetrisIsValidPosition()) {
+      this._tetrisCurrentPiece.y++;
+    }
+    this._tetrisCurrentPiece.y--;
+    this.tetrisLockPiece();
+    this.tetrisClearLines();
+    this.tetrisSpawnPiece();
+  },
+
+  tetrisRotate() {
+    const shape = this._tetrisCurrentPiece.shape;
+    const rotated = shape[0].map((_, i) => shape.map(row => row[i]).reverse());
+    const oldShape = this._tetrisCurrentPiece.shape;
+    this._tetrisCurrentPiece.shape = rotated;
+    
+    if (!this.tetrisIsValidPosition()) {
+      this._tetrisCurrentPiece.shape = oldShape;
+    } else {
+      this.tetrisDrawBoard();
+    }
+  },
+
+  tetrisIsValidPosition() {
+    const piece = this._tetrisCurrentPiece;
+    for (let y = 0; y < piece.shape.length; y++) {
+      for (let x = 0; x < piece.shape[y].length; x++) {
+        if (piece.shape[y][x]) {
+          const boardX = piece.x + x;
+          const boardY = piece.y + y;
+          if (boardX < 0 || boardX >= this._tetrisCOLS || boardY >= this._tetrisROWS) {
+            return false;
+          }
+          if (boardY >= 0 && this._tetrisBoard[boardY][boardX]) {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  },
+
+  tetrisLockPiece() {
+    const piece = this._tetrisCurrentPiece;
+    for (let y = 0; y < piece.shape.length; y++) {
+      for (let x = 0; x < piece.shape[y].length; x++) {
+        if (piece.shape[y][x]) {
+          const boardY = piece.y + y;
+          const boardX = piece.x + x;
+          if (boardY >= 0) {
+            this._tetrisBoard[boardY][boardX] = piece.color;
+          }
+        }
+      }
+    }
+  },
+
+  tetrisClearLines() {
+    let cleared = 0;
+    for (let y = this._tetrisROWS - 1; y >= 0; y--) {
+      if (this._tetrisBoard[y].every(cell => cell !== 0)) {
+        this._tetrisBoard.splice(y, 1);
+        this._tetrisBoard.unshift(Array(this._tetrisCOLS).fill(0));
+        cleared++;
+        y++;
+      }
+    }
+    
+    if (cleared > 0) {
+      this._tetrisLines += cleared;
+      this._tetrisScore += cleared * 100 * this._tetrisLevel;
+      this._tetrisLevel = Math.floor(this._tetrisLines / 10) + 1;
+      $('tetrisScore').textContent = this._tetrisScore.toString();
+      $('tetrisLevel').textContent = this._tetrisLevel.toString();
+      $('tetrisLines').textContent = this._tetrisLines.toString();
+    }
+  },
+
+  tetrisSpawnPiece() {
+    this._tetrisCurrentPiece = this._tetrisNextPiece;
+    this._tetrisNextPiece = this.tetrisCreatePiece();
+    this.tetrisDrawNext(this._tetrisNextPiece);
+    
+    if (!this.tetrisIsValidPosition()) {
+      this.tetrisGameOver();
+    } else {
+      this.tetrisDrawBoard();
+    }
+  },
+
+  tetrisGameOver() {
+    this._tetrisRunning = false;
+    this.modal({
+      title: '🧱 GAME OVER',
+      body: `<p>得分: ${this._tetrisScore}</p><p>等级: ${this._tetrisLevel}</p><p>消除行数: ${this._tetrisLines}</p>`,
+      footer: [{label: '再来一局', cls: 'btn-p'}]
+    });
+  },
+
+  tetrisDrawBoard() {
+    this._tetrisCtx.fillStyle = '#0a0a0a';
+    this._tetrisCtx.fillRect(0, 0, this._tetrisCanvas.width, this._tetrisCanvas.height);
+    
+    for (let y = 0; y < this._tetrisROWS; y++) {
+      for (let x = 0; x < this._tetrisCOLS; x++) {
+        if (this._tetrisBoard[y][x]) {
+          this.tetrisDrawCell(x, y, this._tetrisBoard[y][x]);
+        }
+      }
+    }
+    
+    const piece = this._tetrisCurrentPiece;
+    for (let y = 0; y < piece.shape.length; y++) {
+      for (let x = 0; x < piece.shape[y].length; x++) {
+        if (piece.shape[y][x]) {
+          this.tetrisDrawCell(piece.x + x, piece.y + y, piece.color);
+        }
+      }
+    }
+    
+    this._tetrisCtx.strokeStyle = '#333';
+    for (let y = 0; y <= this._tetrisROWS; y++) {
+      this._tetrisCtx.beginPath();
+      this._tetrisCtx.moveTo(0, y * this._tetrisCELL);
+      this._tetrisCtx.lineTo(this._tetrisCanvas.width, y * this._tetrisCELL);
+      this._tetrisCtx.stroke();
+    }
+    for (let x = 0; x <= this._tetrisCOLS; x++) {
+      this._tetrisCtx.beginPath();
+      this._tetrisCtx.moveTo(x * this._tetrisCELL, 0);
+      this._tetrisCtx.lineTo(x * this._tetrisCELL, this._tetrisCanvas.height);
+      this._tetrisCtx.stroke();
+    }
+  },
+
+  tetrisDrawCell(x, y, color) {
+    this._tetrisCtx.fillStyle = color;
+    this._tetrisCtx.fillRect(x * this._tetrisCELL + 1, y * this._tetrisCELL + 1, this._tetrisCELL - 2, this._tetrisCELL - 2);
+    this._tetrisCtx.shadowColor = color;
+    this._tetrisCtx.shadowBlur = 10;
+    this._tetrisCtx.fillRect(x * this._tetrisCELL + 1, y * this._tetrisCELL + 1, this._tetrisCELL - 2, this._tetrisCELL - 2);
+    this._tetrisCtx.shadowBlur = 0;
+  },
+
+  tetrisDrawNext(piece) {
+    this._tetrisNextCtx.fillStyle = '#0a0a0a';
+    this._tetrisNextCtx.fillRect(0, 0, 120, 120);
+    
+    if (!piece) return;
+    
+    const offsetX = (120 - piece.shape[0].length * 24) / 2;
+    const offsetY = (120 - piece.shape.length * 24) / 2;
+    
+    for (let y = 0; y < piece.shape.length; y++) {
+      for (let x = 0; x < piece.shape[y].length; x++) {
+        if (piece.shape[y][x]) {
+          this._tetrisNextCtx.fillStyle = piece.color;
+          this._tetrisNextCtx.shadowColor = piece.color;
+          this._tetrisNextCtx.shadowBlur = 10;
+          this._tetrisNextCtx.fillRect(offsetX + x * 24 + 2, offsetY + y * 24 + 2, 20, 20);
+          this._tetrisNextCtx.shadowBlur = 0;
+        }
+      }
+    }
+  },
+
+  // ===== BREAKOUT GAME =====
+  _breakoutCanvas: null,
+  _breakoutCtx: null,
+  _breakoutScore: 0,
+  _breakoutLives: 3,
+  _breakoutRunning: false,
+  
+  _breakoutBall: { x: 200, y: 250, dx: 4, dy: -4, radius: 6 },
+  _breakoutPaddle: { x: 150, y: 280, width: 100, height: 10 },
+  _breakoutBricks: [],
+  _breakoutParticles: [],
+  
+  _breakoutCOLS: 10,
+  _breakoutROWS: 5,
+  _breakoutBRICK_WIDTH: 35,
+  _breakoutBRICK_HEIGHT: 15,
+  _breakoutBRICK_PADDING: 5,
+  _breakoutBRICK_OFFSET_TOP: 30,
+  _breakoutBRICK_OFFSET_LEFT: 10,
+
+  _breakoutCOLORS: ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff'],
+
+  resetBreakoutGame() {
+    this._breakoutScore = 0;
+    this._breakoutLives = 3;
+    this._breakoutRunning = false;
+    this._breakoutParticles = [];
+    $('breakoutScore').textContent = '0';
+    $('breakoutLives').textContent = '3';
+    this.initBreakoutBricks();
+    this._breakoutBall = { x: 200, y: 250, dx: 4, dy: -4, radius: 6 };
+    this._breakoutPaddle = { x: 150, y: 280, width: 100, height: 10 };
+    $('breakoutOverlay').classList.remove('hidden');
+    this.breakoutUpdateOverlay('breakout');
+    this.breakoutDraw();
+  },
+
+  initBreakoutGame() {
+    this._breakoutCanvas = $('breakoutCanvas');
+    if (!this._breakoutCanvas) return;
+    this._breakoutCtx = this._breakoutCanvas.getContext('2d');
+    this._breakoutCanvas.width = 400;
+    this._breakoutCanvas.height = 300;
+    
+    this.initBreakoutBricks();
+    this.bindBreakoutEvents();
+    this.breakoutUpdateOverlay('start');
+    this.breakoutDraw();
+  },
+
+  breakoutUpdateOverlay(type) {
+    const overlay = $('breakoutOverlay');
+    if (!overlay) return;
+    
+    const content = overlay.querySelector('.breakout-overlay-content');
+    if (!content) return;
+    
+    if (type === 'start') {
+      content.innerHTML = `
+        <div class="breakout-title">🎯 BREAKOUT</div>
+        <div class="breakout-subtitle">按 空格键 或 点击 开始</div>
+        <div class="breakout-hint">← → 移动挡板 · 击碎所有砖块</div>
+      `;
+    }
+  },
+
+  initBreakoutBricks() {
+    this._breakoutBricks = [];
+    for (let row = 0; row < this._breakoutROWS; row++) {
+      for (let col = 0; col < this._breakoutCOLS; col++) {
+        this._breakoutBricks.push({
+          x: col * (this._breakoutBRICK_WIDTH + this._breakoutBRICK_PADDING) + this._breakoutBRICK_OFFSET_LEFT,
+          y: row * (this._breakoutBRICK_HEIGHT + this._breakoutBRICK_PADDING) + this._breakoutBRICK_OFFSET_TOP,
+          width: this._breakoutBRICK_WIDTH,
+          height: this._breakoutBRICK_HEIGHT,
+          color: this._breakoutCOLORS[row],
+          visible: true
+        });
+      }
+    }
+  },
+
+  bindBreakoutEvents() {
+    const canvas = this._breakoutCanvas;
+    if (!canvas) return;
+    
+    canvas.removeEventListener('click', this._breakoutCanvasHandler);
+    this._breakoutCanvasHandler = () => {
+      if (!this._breakoutRunning) {
+        this.startBreakout();
+      }
+    };
+    canvas.addEventListener('click', this._breakoutCanvasHandler);
+    
+    const overlay = $('breakoutOverlay');
+    if (overlay) {
+      overlay.removeEventListener('click', this._breakoutOverlayHandler);
+      this._breakoutOverlayHandler = () => {
+        if (!this._breakoutRunning) {
+          this.startBreakout();
+        }
+      };
+      overlay.addEventListener('click', this._breakoutOverlayHandler);
+    }
+    
+    document.removeEventListener('keydown', this._breakoutKeyHandler);
+    this._breakoutKeyHandler = (e) => {
+      if (!document.querySelector('#page-breakout.active')) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!this._breakoutRunning) {
+          this.startBreakout();
+        }
+      }
+      if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        if (this._breakoutRunning) {
+          this._breakoutPaddle.x -= 30;
+          if (this._breakoutPaddle.x < 0) this._breakoutPaddle.x = 0;
+        }
+      }
+      if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        if (this._breakoutRunning) {
+          this._breakoutPaddle.x += 30;
+          if (this._breakoutPaddle.x > 400 - this._breakoutPaddle.width) {
+            this._breakoutPaddle.x = 400 - this._breakoutPaddle.width;
+          }
+        }
+      }
+    };
+    document.addEventListener('keydown', this._breakoutKeyHandler);
+    
+    const helpBtn = $('breakoutHelp');
+    if (helpBtn) {
+      helpBtn.removeEventListener('click', this._breakoutHelpHandler);
+      this._breakoutHelpHandler = (e) => {
+        e.stopPropagation();
+        this.modal({
+          title: '🎯 打砖块游戏教程',
+          body: `
+            <p style="line-height:1.8;margin-bottom:12px"><strong>🎯 游戏目标：</strong></p>
+            <p style="line-height:1.8;font-size:0.9rem">用挡板反弹球，击碎所有砖块！</p>
+            
+            <p style="line-height:1.8;margin:16px 0 12px;font-weight:600"><strong>🎮 操作说明：</strong></p>
+            <p style="line-height:1.8;font-size:0.9rem"><strong>空格键</strong> 或 <strong>点击</strong> 开始游戏</p>
+            <p style="line-height:1.8;font-size:0.9rem"><strong>←</strong> 向左移动挡板</p>
+            <p style="line-height:1.8;font-size:0.9rem"><strong>→</strong> 向右移动挡板</p>
+            
+            <p style="line-height:1.8;margin:16px 0 12px;font-weight:600"><strong>💡 技巧提示：</strong></p>
+            <p style="line-height:1.8;font-size:0.85rem">• 控制挡板击球角度</p>
+            <p style="line-height:1.8;font-size:0.85rem">• 击中砖块中间会垂直反弹</p>
+            <p style="line-height:1.8;font-size:0.85rem">• 击中边缘会产生斜向反弹</p>
+            <p style="line-height:1.8;font-size:0.85rem">• 每击碎一个砖块得10分</p>
+          `,
+          footer: [{label:'开始游戏', cls:'btn-p'}]
+        });
+      };
+      helpBtn.addEventListener('click', this._breakoutHelpHandler);
+    }
+  },
+
+  startBreakout() {
+    this._breakoutRunning = true;
+    $('breakoutOverlay').classList.add('hidden');
+    this.breakoutGameLoop();
+  },
+
+  breakoutGameLoop() {
+    if (!this._breakoutRunning) return;
+    
+    this.breakoutUpdate();
+    this.breakoutDraw();
+    
+    requestAnimationFrame(() => this.breakoutGameLoop());
+  },
+
+  breakoutUpdate() {
+    this._breakoutBall.x += this._breakoutBall.dx;
+    this._breakoutBall.y += this._breakoutBall.dy;
+    
+    if (this._breakoutBall.x - this._breakoutBall.radius <= 0 || 
+        this._breakoutBall.x + this._breakoutBall.radius >= 400) {
+      this._breakoutBall.dx = -this._breakoutBall.dx;
+    }
+    
+    if (this._breakoutBall.y - this._breakoutBall.radius <= 0) {
+      this._breakoutBall.dy = -this._breakoutBall.dy;
+    }
+    
+    if (this._breakoutBall.y + this._breakoutBall.radius >= 300) {
+      this._breakoutLives--;
+      $('breakoutLives').textContent = this._breakoutLives.toString();
+      
+      if (this._breakoutLives <= 0) {
+        this.breakoutGameOver();
+        return;
+      }
+      
+      this._breakoutBall = { x: 200, y: 250, dx: 4, dy: -4, radius: 6 };
+      this._breakoutPaddle = { x: 150, y: 280, width: 100, height: 10 };
+    }
+    
+    if (this._breakoutBall.y + this._breakoutBall.radius >= this._breakoutPaddle.y &&
+        this._breakoutBall.x >= this._breakoutPaddle.x &&
+        this._breakoutBall.x <= this._breakoutPaddle.x + this._breakoutPaddle.width) {
+      this._breakoutBall.dy = -Math.abs(this._breakoutBall.dy);
+      const hitPos = (this._breakoutBall.x - this._breakoutPaddle.x) / this._breakoutPaddle.width;
+      this._breakoutBall.dx = (hitPos - 0.5) * 8;
+    }
+    
+    for (let brick of this._breakoutBricks) {
+      if (!brick.visible) continue;
+      
+      if (this._breakoutBall.x + this._breakoutBall.radius > brick.x &&
+          this._breakoutBall.x - this._breakoutBall.radius < brick.x + brick.width &&
+          this._breakoutBall.y + this._breakoutBall.radius > brick.y &&
+          this._breakoutBall.y - this._breakoutBall.radius < brick.y + brick.height) {
+        
+        brick.visible = false;
+        this._breakoutScore += 10;
+        $('breakoutScore').textContent = this._breakoutScore.toString();
+        
+        this._breakoutBall.dy = -this._breakoutBall.dy;
+        
+        for (let i = 0; i < 8; i++) {
+          this._breakoutParticles.push({
+            x: this._breakoutBall.x,
+            y: this._breakoutBall.y,
+            dx: (Math.random() - 0.5) * 6,
+            dy: (Math.random() - 0.5) * 6,
+            color: brick.color,
+            life: 1
+          });
+        }
+        
+        break;
+      }
+    }
+    
+    this._breakoutParticles = this._breakoutParticles.filter(p => {
+      p.x += p.dx;
+      p.y += p.dy;
+      p.life -= 0.02;
+      return p.life > 0;
+    });
+    
+    if (this._breakoutBricks.every(b => !b.visible)) {
+      this.breakoutWin();
+    }
+  },
+
+  breakoutGameOver() {
+    this._breakoutRunning = false;
+    const overlay = $('breakoutOverlay');
+    overlay.classList.remove('hidden');
+    const content = overlay.querySelector('.breakout-overlay-content');
+    content.innerHTML = `
+      <div class="breakout-title">💔 GAME OVER</div>
+      <div class="breakout-subtitle">得分: ${this._breakoutScore}</div>
+      <div class="breakout-hint">按 空格键 或 点击 重新开始</div>
+    `;
+  },
+
+  breakoutWin() {
+    this._breakoutRunning = false;
+    const overlay = $('breakoutOverlay');
+    overlay.classList.remove('hidden');
+    const content = overlay.querySelector('.breakout-overlay-content');
+    content.innerHTML = `
+      <div class="breakout-title" style="color:#4ecdc4">🎉 WIN!</div>
+      <div class="breakout-subtitle">得分: ${this._breakoutScore}</div>
+      <div class="breakout-hint">按 空格键 或 点击 再玩一次</div>
+    `;
+  },
+
+  breakoutDraw() {
+    this._breakoutCtx.fillStyle = '#0a0a0a';
+    this._breakoutCtx.fillRect(0, 0, 400, 300);
+    
+    for (let brick of this._breakoutBricks) {
+      if (!brick.visible) continue;
+      
+      this._breakoutCtx.fillStyle = brick.color;
+      this._breakoutCtx.shadowColor = brick.color;
+      this._breakoutCtx.shadowBlur = 15;
+      this._breakoutCtx.fillRect(brick.x, brick.y, brick.width, brick.height);
+      this._breakoutCtx.shadowBlur = 0;
+      
+      this._breakoutCtx.fillStyle = 'rgba(255,255,255,0.3)';
+      this._breakoutCtx.fillRect(brick.x, brick.y, brick.width, 3);
+    }
+    
+    this._breakoutCtx.fillStyle = '#ff6b6b';
+    this._breakoutCtx.shadowColor = '#ff6b6b';
+    this._breakoutCtx.shadowBlur = 15;
+    this._breakoutCtx.fillRect(this._breakoutPaddle.x, this._breakoutPaddle.y, this._breakoutPaddle.width, this._breakoutPaddle.height);
+    this._breakoutCtx.shadowBlur = 0;
+    
+    this._breakoutCtx.beginPath();
+    this._breakoutCtx.arc(this._breakoutBall.x, this._breakoutBall.y, this._breakoutBall.radius, 0, Math.PI * 2);
+    this._breakoutCtx.fillStyle = '#fff';
+    this._breakoutCtx.shadowColor = '#fff';
+    this._breakoutCtx.shadowBlur = 20;
+    this._breakoutCtx.fill();
+    this._breakoutCtx.shadowBlur = 0;
+    
+    for (let p of this._breakoutParticles) {
+      this._breakoutCtx.beginPath();
+      this._breakoutCtx.arc(p.x, p.y, 3 * p.life, 0, Math.PI * 2);
+      this._breakoutCtx.fillStyle = p.color;
+      this._breakoutCtx.globalAlpha = p.life;
+      this._breakoutCtx.fill();
+      this._breakoutCtx.globalAlpha = 1;
+    }
+  },
+
+  // ===== 2048 GAME =====
+  _gameBoard: null,
+  _gameScore: 0,
+  _gameBest: 0,
+  _gameTheme: 'classic',
+  _gameCells: [],
+  _gameNewTile: null,
+  _gameMergedTile: null,
+
+  initGame2048() {
+    this._gameScore = 0;
+    this._gameBest = parseInt(localStorage.getItem('game2048_best') || '0');
+    this._gameTheme = localStorage.getItem('game2048_theme') || 'classic';
+    this.updateGameScore();
+    this.renderGameBoard();
+    this.bindGameEvents();
+    this.selectGameTheme(this._gameTheme);
+  },
+
+  reset2048Game() {
+    this._gameScore = 0;
+    this._gameBest = parseInt(localStorage.getItem('game2048_best') || '0');
+    this._gameTheme = localStorage.getItem('game2048_theme') || 'classic';
+    this.updateGameScore();
+    this.renderGameBoard();
+    this.selectGameTheme(this._gameTheme);
+  },
+
+  renderGameBoard() {
+    const board = $('gameBoard');
+    board.innerHTML = '';
+    this._gameCells = [];
+    for (let i = 0; i < 16; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'game-cell empty';
+      cell.dataset.value = '0';
+      board.appendChild(cell);
+      this._gameCells.push(0);
+    }
+    this.addRandomTile();
+    this.addRandomTile();
+  },
+
+  addRandomTile() {
+    const emptyIndices = this._gameCells
+      .map((val, idx) => val === 0 ? idx : -1)
+      .filter(idx => idx !== -1);
+    if (emptyIndices.length === 0) return;
+    const idx = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+    const value = Math.random() < 0.9 ? 2 : 4;
+    this._gameCells[idx] = value;
+    const cell = $('gameBoard').children[idx];
+    cell.textContent = value;
+    cell.dataset.value = value;
+    cell.classList.remove('empty');
+    cell.classList.add('new');
+    setTimeout(() => cell.classList.remove('new'), 200);
+  },
+
+  move(direction) {
+    let moved = false;
+    const vectors = {
+      up: { row: -1, col: 0 },
+      down: { row: 1, col: 0 },
+      left: { row: 0, col: -1 },
+      right: { row: 0, col: 1 }
+    };
+    const vector = vectors[direction];
+    
+    const traverseOrder = direction === 'down' || direction === 'right' 
+      ? [3, 2, 1, 0] 
+      : [0, 1, 2, 3];
+    
+    for (let i = 0; i < 4; i++) {
+      const line = this.getLine(i, direction);
+      const merged = this.mergeLine(line);
+      const movedLine = this.moveLine(merged);
+      if (JSON.stringify(line) !== JSON.stringify(movedLine)) {
+        moved = true;
+        this.setLine(i, direction, movedLine);
+      }
+    }
+    
+    if (moved) {
+      setTimeout(() => {
+        this.addRandomTile();
+        if (!this.canMove()) {
+          this.gameOver();
+        }
+      }, 100);
+    }
+  },
+
+  getLine(index, direction) {
+    const line = [];
+    if (direction === 'up' || direction === 'down') {
+      for (let i = 0; i < 4; i++) {
+        line.push(this._gameCells[i * 4 + index]);
+      }
+    } else {
+      for (let i = 0; i < 4; i++) {
+        line.push(this._gameCells[index * 4 + i]);
+      }
+    }
+    if (direction === 'down' || direction === 'right') {
+      line.reverse();
+    }
+    return line;
+  },
+
+  setLine(index, direction, line) {
+    if (direction === 'down' || direction === 'right') {
+      line.reverse();
+    }
+    if (direction === 'up' || direction === 'down') {
+      for (let i = 0; i < 4; i++) {
+        this._gameCells[i * 4 + index] = line[i];
+        const cell = $('gameBoard').children[i * 4 + index];
+        cell.textContent = line[i] || '';
+        cell.dataset.value = line[i] || '0';
+        cell.className = line[i] ? 'game-cell' : 'game-cell empty';
+      }
+    } else {
+      for (let i = 0; i < 4; i++) {
+        this._gameCells[index * 4 + i] = line[i];
+        const cell = $('gameBoard').children[index * 4 + i];
+        cell.textContent = line[i] || '';
+        cell.dataset.value = line[i] || '0';
+        cell.className = line[i] ? 'game-cell' : 'game-cell empty';
+      }
+    }
+  },
+
+  moveLine(line) {
+    let result = line.filter(val => val !== 0);
+    while (result.length < 4) {
+      result.push(0);
+    }
+    return result;
+  },
+
+  mergeLine(line) {
+    const result = [];
+    let i = 0;
+    while (i < line.length) {
+      if (line[i] !== 0 && line[i] === line[i + 1]) {
+        const merged = line[i] * 2;
+        result.push(merged);
+        this._gameScore += merged;
+        if (this._gameScore > this._gameBest) {
+          this._gameBest = this._gameScore;
+          localStorage.setItem('game2048_best', this._gameBest.toString());
+        }
+        this.updateGameScore();
+        i += 2;
+      } else {
+        result.push(line[i]);
+        i++;
+      }
+    }
+    return result;
+  },
+
+  canMove() {
+    for (let i = 0; i < 16; i++) {
+      if (this._gameCells[i] === 0) return true;
+      const row = Math.floor(i / 4);
+      const col = i % 4;
+      if (row < 3 && this._gameCells[i] === this._gameCells[i + 4]) return true;
+      if (col < 3 && this._gameCells[i] === this._gameCells[i + 1]) return true;
+    }
+    return false;
+  },
+
+  gameOver() {
+    this.toast('游戏结束！得分: ' + this._gameScore, 3000);
+  },
+
+  updateGameScore() {
+    $('gameScore').textContent = this._gameScore.toString();
+    $('gameBest').textContent = this._gameBest.toString();
+  },
+
+  newGame() {
+    this._gameScore = 0;
+    this.updateGameScore();
+    this.renderGameBoard();
+  },
+
+  selectGameTheme(theme) {
+    this._gameTheme = theme;
+    localStorage.setItem('game2048_theme', theme);
+    document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`[data-theme="${theme}"]`).classList.add('active');
+    const board = $('gameBoard');
+    board.className = `game-board game-theme-${theme}`;
+  },
+
+  bindGameEvents() {
+    const keyHandler = (e) => {
+      if (!document.querySelector('#page-game2048.active')) return;
+      switch (e.key.toLowerCase()) {
+        case 'w': e.preventDefault(); this.move('up'); break;
+        case 's': e.preventDefault(); this.move('down'); break;
+        case 'a': e.preventDefault(); this.move('left'); break;
+        case 'd': e.preventDefault(); this.move('right'); break;
+      }
+    };
+    
+    document.removeEventListener('keydown', this._gameKeyHandler);
+    this._gameKeyHandler = keyHandler;
+    document.addEventListener('keydown', this._gameKeyHandler);
+
+    const newBtn = $('newGameBtn');
+    if (newBtn) {
+      newBtn.addEventListener('click', () => this.newGame());
+    }
+    
+    const helpBtn = $('gameHelp');
+    if (helpBtn) {
+      helpBtn.addEventListener('click', () => {
+        this.modal({
+          title: '🎮 2048 游戏教程',
+          body: `
+            <p style="line-height:1.8;margin-bottom:12px"><strong>🎯 游戏目标：</strong></p>
+            <p style="line-height:1.8;font-size:0.9rem">合并相同数字，达到 <strong style="color:var(--red);font-size:1.1rem">2048</strong> 方块！</p>
+            
+            <p style="line-height:1.8;margin:16px 0 12px;font-weight:600"><strong>🎮 操作说明：</strong></p>
+            <p style="line-height:1.8;font-size:0.9rem"><strong>W</strong> 向上移动</p>
+            <p style="line-height:1.8;font-size:0.9rem"><strong>S</strong> 向下移动</p>
+            <p style="line-height:1.8;font-size:0.9rem"><strong>A</strong> 向左移动</p>
+            <p style="line-height:1.8;font-size:0.9rem"><strong>D</strong> 向右移动</p>
+            
+            <p style="line-height:1.8;margin:16px 0 12px;font-weight:600"><strong>💡 技巧提示：</strong></p>
+            <p style="line-height:1.8;font-size:0.85rem">• 尽量保持最大数字在角落</p>
+            <p style="line-height:1.8;font-size:0.85rem">• 不要急于合并，思考几步后的布局</p>
+            <p style="line-height:1.8;font-size:0.85rem">• 优先填满空白区域</p>
+          `,
+          footer: [{label:'开始游戏', cls:'btn-p'}]
+        });
+      });
+    }
+
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.selectGameTheme(btn.dataset.theme);
+      });
+    });
+  },
+
+  // ===== CALENDAR =====
+  _calYear: new Date().getFullYear(),
+  _calMonth: new Date().getMonth(),
+  _calSelectedDate: null,
+  _calMoods: {},
+  _calTodos: [],
+
+  initCalendar() {
+    this.loadCalendarData();
+    this.renderCalendar();
+    this.bindCalendarEvents();
+    this.updateTodoDateDisplay();
+  },
+
+  loadCalendarData() {
+    const saved = localStorage.getItem('calendar_data');
+    if (saved) {
+      const data = JSON.parse(saved);
+      this._calMoods = data.moods || {};
+      this._calTodos = data.todos || [];
+    }
+  },
+
+  saveCalendarData() {
+    localStorage.setItem('calendar_data', JSON.stringify({
+      moods: this._calMoods,
+      todos: this._calTodos
+    }));
+  },
+
+  renderCalendar() {
+    const year = this._calYear;
+    const month = this._calMonth;
+    
+    $('calTitle').textContent = `${year}年${month + 1}月`;
+    
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    
+    let html = '';
+    
+    // Previous month days
+    for (let i = firstDay - 1; i >= 0; i--) {
+      const day = daysInPrevMonth - i;
+      const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      html += this.renderCalendarDay(day, true, dateKey);
+    }
+    
+    // Current month days
+    const today = new Date();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+      const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      html += this.renderCalendarDay(day, false, dateKey, isToday);
+    }
+    
+    // Next month days
+    const remaining = 42 - (firstDay + daysInMonth);
+    for (let day = 1; day <= remaining; day++) {
+      const dateKey = `${year}-${String(month + 2).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      html += this.renderCalendarDay(day, true, dateKey);
+    }
+    
+    $('calendarGrid').innerHTML = html;
+    this.renderTodoList();
+  },
+
+  renderCalendarDay(day, isOtherMonth, dateKey, isToday = false) {
+    const mood = this._calMoods[dateKey];
+    const moodEmoji = this.getMoodEmoji(mood);
+    const isSelected = this._calSelectedDate === dateKey;
+    
+    let classes = 'calendar-day';
+    if (isOtherMonth) classes += ' other-month';
+    if (isToday) classes += ' today';
+    if (isSelected) classes += ' selected';
+    if (mood) classes += ' has-mood';
+    
+    return `
+      <div class="${classes}" data-date="${dateKey}">
+        ${day}
+        ${moodEmoji ? `<span class="mood-indicator">${moodEmoji}</span>` : ''}
+      </div>
+    `;
+  },
+
+  getMoodEmoji(mood) {
+    const emojis = {
+      happy: '😄',
+      good: '😊',
+      neutral: '😐',
+      sad: '😔',
+      angry: '😠'
+    };
+    return emojis[mood] || '';
+  },
+
+  renderTodoList() {
+    const list = $('todoList');
+    if (this._calTodos.length === 0) {
+      list.innerHTML = '<div class="empty-todo">暂无待办事项 ✨</div>';
+      return;
+    }
+    
+    list.innerHTML = this._calTodos.map((todo, index) => {
+      const dateStr = todo.date ? this.formatDateLabel(todo.date) : '';
+      return `
+      <div class="todo-item ${todo.completed ? 'completed' : ''}" data-index="${index}">
+        <div class="todo-checkbox ${todo.completed ? 'checked' : ''}"></div>
+        <div class="todo-content">
+          <span class="todo-text">${esc(todo.text)}</span>
+          ${dateStr ? `<span class="todo-date">${dateStr}</span>` : ''}
+        </div>
+        <button class="todo-delete">✕</button>
+      </div>
+    `}).join('');
+  },
+
+  formatDateLabel(dateStr) {
+    const today = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    
+    if (dateStr === today) return '今天';
+    if (dateStr === tomorrow) return '明天';
+    
+    const date = new Date(dateStr);
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${month}月${day}日`;
+  },
+
+  addTodo(text) {
+    if (!text.trim()) return;
+    this._calTodos.push({
+      id: Date.now(),
+      text: text.trim(),
+      completed: false,
+      date: this._calSelectedDate || new Date().toISOString().split('T')[0]
+    });
+    this.saveCalendarData();
+    this.renderTodoList();
+  },
+
+  toggleTodo(index) {
+    this._calTodos[index].completed = !this._calTodos[index].completed;
+    this.saveCalendarData();
+    this.renderTodoList();
+  },
+
+  deleteTodo(index) {
+    this._calTodos.splice(index, 1);
+    this.saveCalendarData();
+    this.renderTodoList();
+  },
+
+  setMood(dateKey, mood) {
+    if (mood) {
+      this._calMoods[dateKey] = mood;
+    } else {
+      delete this._calMoods[dateKey];
+    }
+    this.saveCalendarData();
+    this.renderCalendar();
+  },
+
+  prevMonth() {
+    if (this._calMonth === 0) {
+      this._calMonth = 11;
+      this._calYear--;
+    } else {
+      this._calMonth--;
+    }
+    this.renderCalendar();
+  },
+
+  nextMonth() {
+    if (this._calMonth === 11) {
+      this._calMonth = 0;
+      this._calYear++;
+    } else {
+      this._calMonth++;
+    }
+    this.renderCalendar();
+  },
+
+  selectDate(dateKey) {
+    this._calSelectedDate = dateKey;
+    this.renderCalendar();
+    this.updateTodoDateDisplay();
+  },
+
+  updateTodoDateDisplay() {
+    const display = $('todoSelectedDate');
+    if (!display) return;
+    
+    if (this._calSelectedDate) {
+      display.textContent = `📅 ${this.formatDateLabel(this._calSelectedDate)}`;
+    } else {
+      display.textContent = '📅 今天';
+    }
+  },
+
+  bindCalendarEvents() {
+    $('calPrev')?.addEventListener('click', () => this.prevMonth());
+    $('calNext')?.addEventListener('click', () => this.nextMonth());
+
+    $('calendarGrid')?.addEventListener('click', (e) => {
+      const day = e.target.closest('.calendar-day');
+      if (day) {
+        this.selectDate(day.dataset.date);
+      }
+    });
+
+    document.querySelectorAll('.mood-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!this._calSelectedDate) {
+          this.toast('请先选择日期');
+          return;
+        }
+        document.querySelectorAll('.mood-card').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.setMood(this._calSelectedDate, btn.dataset.mood);
+      });
+    });
+
+    $('todoInput')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        this.addTodo(e.target.value);
+        e.target.value = '';
+      }
+    });
+
+    $('todoList')?.addEventListener('click', (e) => {
+      const checkbox = e.target.closest('.todo-checkbox');
+      const deleteBtn = e.target.closest('.todo-delete');
+      const item = e.target.closest('.todo-item');
+      
+      if (!item) return;
+      const index = parseInt(item.dataset.index);
+      
+      if (checkbox) {
+        this.toggleTodo(index);
+      } else if (deleteBtn) {
+        this.deleteTodo(index);
+      }
+    });
   },
 
   // ===== EVENTS =====
@@ -805,8 +2362,41 @@ const App = {
     // Backup
     $('backupBtn').addEventListener('click', ()=>this.showBackupModal());
 
+    // Back to top
+    const backToTop = $('backToTop');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 300) {
+        backToTop.classList.add('visible');
+      } else {
+        backToTop.classList.remove('visible');
+      }
+    });
+    backToTop.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
     // Edit mode (password protected)
     $('editBtn').addEventListener('click', ()=>this.tryToggleEdit());
+
+    // Mobile menu
+    $('menuToggle')?.addEventListener('click', ()=>this.toggleMobileMenu());
+    $('mobileMenuClose')?.addEventListener('click', ()=>this.toggleMobileMenu());
+    document.querySelectorAll('.mobile-tab').forEach(tab => {
+      tab.addEventListener('click', ()=>{
+        if (tab.dataset.page) {
+          this.switchPage(tab.dataset.page);
+        }
+        this.toggleMobileMenu();
+      });
+    });
+    $('mobileEditBtn')?.addEventListener('click', ()=>{
+      this.tryToggleEdit();
+      this.toggleMobileMenu();
+    });
+    $('mobileThemeBtn')?.addEventListener('click', ()=>{
+      this.toggleTheme();
+      this.toggleMobileMenu();
+    });
 
     // Password modal
     $('pwConfirm').addEventListener('click', ()=>this.checkPw());
@@ -1363,6 +2953,55 @@ const App = {
     $('themeBtn').textContent=this.theme==='dark'?'☀️':'🌙';
   },
 
+  toggleMobileMenu() {
+    const menu = $('mobileMenu');
+    const toggle = $('menuToggle');
+    if (!menu || !toggle) return;
+    
+    menu.classList.toggle('show');
+    toggle.classList.toggle('active');
+    
+    if (menu.classList.contains('show')) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+  },
+
+  _quoteIdx: 0,
+  _quoteList: [],
+  
+  initQuotes() {
+    const data = this.store.data;
+    this._quoteList = data.quotes || ['写代码就像泡茶，水温要刚好。', '设计不是让它看起来怎么样，而是让它用起来怎么样。', 'Bug 不是程序的错误，是程序在跟你开玩笑。'];
+    this._quoteIdx = 0;
+    this.renderQuote();
+    this.startQuoteCarousel();
+  },
+  
+  startQuoteCarousel() {
+    this._quoteTimer = setInterval(() => {
+      this._quoteIdx++;
+      if (this._quoteIdx >= this._quoteList.length) this._quoteIdx = 0;
+      this.renderQuote();
+    }, 5000);
+  },
+  
+  renderQuote() {
+    const quoteEl = $('quoteText');
+    const contentEl = $('quoteContent');
+    if (!quoteEl || !contentEl) return;
+    
+    contentEl.style.opacity = '0';
+    contentEl.style.transform = 'translateY(5px)';
+    
+    setTimeout(() => {
+      quoteEl.textContent = this._quoteList[this._quoteIdx] || '';
+      contentEl.style.opacity = '1';
+      contentEl.style.transform = 'translateY(0)';
+    }, 300);
+  },
+
   // ===== MODAL =====
   modal(config) {
     $('modalTitle').textContent=config.title||'';
@@ -1680,14 +3319,16 @@ const App = {
 
   // ===== POETRY CAROUSEL =====
   _defaultPoetry: [
-    { text: '床前明月光，疑是地上霜。举头望明月，低头思故乡。', author: '李白《静夜思》', char: '🌙' },
+    { text: '寻寻觅觅，冷冷清清，凄凄惨惨戚戚。乍暖还寒时候，最难将息。', author: '李清照《声声慢》', char: '�' },
     { text: '明月几时有？把酒问青天。不知天上宫阙，今夕是何年。', author: '苏轼《水调歌头》', char: '🍶' },
-    { text: '人生若只如初见，何事秋风悲画扇。等闲变却故人心，却道故人心易变。', author: '纳兰性德《木兰词》', char: '💔' },
-    { text: '曾经沧海难为水，除却巫山不是云。取次花丛懒回顾，半缘修道半缘君。', author: '元稹《离思》', char: '💕' },
-    { text: '海上生明月，天涯共此时。情人怨遥夜，竟夕起相思。', author: '张九龄《望月怀远》', char: '🌊' },
-    { text: '春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少。', author: '孟浩然《春晓》', char: '🐦' },
-    { text: '空山不见人，但闻人语响。返景入深林，复照青苔上。', author: '王维《鹿柴》', char: '🏔️' },
-    { text: '大漠孤烟直，长河落日圆。萧关逢候骑，都护在燕然。', author: '王维《使至塞上》', char: '🐪' },
+    { text: '众里寻他千百度，蓦然回首，那人却在，灯火阑珊处。', author: '辛弃疾《青玉案》', char: '✨' },
+    { text: '寒蝉凄切，对长亭晚，骤雨初歇。都门帐饮无绪，留恋处，兰舟催发。', author: '柳永《雨霖铃》', char: '🌧️' },
+    { text: '无可奈何花落去，似曾相识燕归来。小园香径独徘徊。', author: '晏殊《浣溪沙》', char: '🦋' },
+    { text: '庭院深深深几许？杨柳堆烟，帘幕无重数。', author: '欧阳修《蝶恋花》', char: '🌿' },
+    { text: '伫倚危楼风细细，望极春愁，黯黯生天际。', author: '柳永《蝶恋花》', char: '�' },
+    { text: '十年生死两茫茫，不思量，自难忘。千里孤坟，无处话凄凉。', author: '苏轼《江城子》', char: '🌙' },
+    { text: '红藕香残玉簟秋。轻解罗裳，独上兰舟。', author: '李清照《一剪梅》', char: '🪷' },
+    { text: '醉里挑灯看剑，梦回吹角连营。八百里分麾下炙，五十弦翻塞外声。', author: '辛弃疾《破阵子》', char: '⚔️' },
   ],
 
   initPoetryCarousel() {

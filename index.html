@@ -6,11 +6,85 @@
   <title>Portfolio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Inter:wght@300;400;500;600&family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&display=swap" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Inter:wght@300;400;500;600&family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&display=swap"></noscript>
-  <link rel="stylesheet" href="src/css/washi.css?v=13">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Inter:wght@300;400;500;600&family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&family=LXGW+WenKai:wght@300;400;500;700&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Inter:wght@300;400;500;600&family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&family=LXGW+WenKai:wght@300;400;500;700&display=swap"></noscript>
+  <link rel="stylesheet" href="src/css/washi.css?v=25">
 </head>
 <body>
+
+  <!-- 3D Decorations Layer -->
+  <div class="decorations-layer">
+    <!-- Top Left Decorations -->
+    <div class="deco-zone deco-zone-left">
+      <!-- 3D Rubik's Cube -->
+      <div class="deco-3d deco-rubik">
+        <div class="rubik-face rubik-front"></div>
+        <div class="rubik-face rubik-back"></div>
+        <div class="rubik-face rubik-left"></div>
+        <div class="rubik-face rubik-right"></div>
+        <div class="rubik-face rubik-top"></div>
+        <div class="rubik-face rubik-bottom"></div>
+      </div>
+      
+      <!-- 3D Tangram -->
+      <div class="deco-3d deco-tangram">
+        <div class="tangram-piece tangram-1"></div>
+        <div class="tangram-piece tangram-2"></div>
+        <div class="tangram-piece tangram-3"></div>
+        <div class="tangram-piece tangram-4"></div>
+        <div class="tangram-piece tangram-5"></div>
+        <div class="tangram-piece tangram-6"></div>
+        <div class="tangram-piece tangram-7"></div>
+      </div>
+      
+      <!-- Pixel Blocks -->
+      <div class="deco-3d deco-pixels">
+        <div class="pixel-block"></div>
+        <div class="pixel-block"></div>
+        <div class="pixel-block"></div>
+        <div class="pixel-block"></div>
+      </div>
+      
+      <!-- Mobius Strip -->
+      <div class="deco-3d deco-mobius">
+        <div class="mobius-ring"></div>
+      </div>
+      
+      <!-- Fibonacci Spiral -->
+      <div class="deco-3d deco-fibonacci">
+        <svg viewBox="0 0 100 100" class="fibonacci-svg">
+          <path d="M50 50 Q50 30 70 30 Q90 30 90 50 Q90 70 70 70 Q50 70 50 50" fill="none" stroke="currentColor" stroke-width="1"/>
+          <path d="M70 70 Q70 90 90 90" fill="none" stroke="currentColor" stroke-width="1"/>
+        </svg>
+      </div>
+    </div>
+    
+    <!-- Top Right Decorations -->
+    <div class="deco-zone deco-zone-right">
+      <!-- 3D Geometric Shapes -->
+      <div class="deco-3d deco-geometry">
+        <div class="geo-octahedron"></div>
+      </div>
+      
+      <!-- Binary Stream -->
+      <div class="deco-3d deco-binary">
+        <div class="binary-column"></div>
+        <div class="binary-column"></div>
+        <div class="binary-column"></div>
+      </div>
+      
+      <!-- Spinning Stars -->
+      <div class="deco-3d deco-stars">
+        <div class="star-system">
+          <div class="star star-1">✦</div>
+          <div class="star star-2">✧</div>
+          <div class="star star-3">✦</div>
+          <div class="orbit-ring orbit-1"></div>
+          <div class="orbit-ring orbit-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Nav -->
   <nav class="nav" id="nav">
@@ -22,14 +96,46 @@
         <button class="tab" data-page="articles">📝 Articles</button>
         <button class="tab" data-page="about">👤 About</button>
         <button class="tab" data-page="gallery">🖼 Gallery</button>
+        <a href="games/dino.html" class="tab">🎮 Games</a>
       </div>
       <div class="nav-r">
         <button id="editBtn" title="编辑模式">✎</button>
         <button id="backupBtn" title="数据备份" style="display:none">💾</button>
         <button id="themeBtn" title="主题">🌙</button>
+        <button class="menu-toggle" id="menuToggle" title="菜单">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
       </div>
     </div>
   </nav>
+
+  <!-- Mobile Menu -->
+  <div class="mobile-menu" id="mobileMenu">
+    <div class="mobile-menu-content">
+      <div class="mobile-menu-header">
+        <span class="mobile-logo">✦ folio</span>
+        <button class="mobile-menu-close" id="mobileMenuClose">✕</button>
+      </div>
+      <div class="mobile-menu-nav">
+        <button class="mobile-tab active" data-page="home">🏠 Home</button>
+        <button class="mobile-tab" data-page="works">💼 Works</button>
+        <button class="mobile-tab" data-page="articles">📝 Articles</button>
+        <button class="mobile-tab" data-page="about">👤 About</button>
+        <button class="mobile-tab" data-page="gallery">🖼 Gallery</button>
+        <a href="games/dino.html" class="mobile-tab">🎮 游戏中心</a>
+        <button class="mobile-tab" data-page="calendar">📅 日历待办</button>
+      </div>
+      <div class="mobile-menu-extras">
+        <button class="mobile-extra-btn" id="mobileEditBtn">✎ 编辑模式</button>
+        <button class="mobile-extra-btn" id="mobileThemeBtn">🌙 切换主题</button>
+      </div>
+      <div class="mobile-menu-footer">
+        <p>&copy; 2024 Your Name</p>
+      </div>
+    </div>
+  </div>
 
   <!-- === PAGES === -->
   <div class="pages" id="pages">
@@ -60,6 +166,18 @@
         <p class="home-sub" id="dispTitle">Designer / Developer</p>
         <p class="home-bio" id="dispBio">Crafting digital experiences with code and creativity.</p>
         <div class="home-soc" id="heroSoc"></div>
+        
+        <!-- Quotes section -->
+        <div class="home-quotes" id="homeQuotes">
+          <div class="quotes-container">
+            <div class="quote-content" id="quoteContent">
+              <span class="quote-symbol">[</span>
+              <span class="quote-text" id="quoteText">写代码就像泡茶，水温要刚好。</span>
+              <span class="quote-symbol">]</span>
+            </div>
+          </div>
+        </div>
+        
         <div class="home-hint">↓ 滚动查看更多</div>
 
         <!-- Preview section -->
@@ -160,9 +278,6 @@
           <!-- Timeline -->
           <h4 class="ab-label">📅 经历</h4>
           <div class="tl-wrap" id="tlWrap"></div>
-          <!-- Quotes -->
-          <h4 class="ab-label">💬 语录</h4>
-          <div class="about-quotes" id="aboutQuotes"></div>
           <h4 class="ab-label">Skills</h4>
           <div class="tags" id="skillsTags"></div>
           <h4 class="ab-label">Contact</h4>
@@ -175,8 +290,17 @@
     <div class="page" id="page-gallery">
       <div class="page-inner">
         <div class="p-deco"></div>
-        <h2 class="pg-title">Gallery</h2>
-        <p class="pg-sub">影像存档</p>
+        <div class="gallery-header">
+          <div>
+            <h2 class="pg-title">Gallery</h2>
+            <p class="pg-sub">回忆</p>
+          </div>
+          <button class="read-counter" id="readCounter">
+            <span class="read-icon">👁</span>
+            <span class="read-num" id="readNum">0</span>
+            <span class="read-label">次阅读</span>
+          </button>
+        </div>
         
         <!-- Poetry Carousel Module -->
         <div class="poetry-carousel" id="poetryCarousel">
@@ -185,13 +309,215 @@
             <div class="poetry-text" id="poetryText"></div>
             <div class="poetry-author" id="poetryAuthor"></div>
           </div>
-          <button class="poetry-nav poetry-prev" id="poetryPrev">‹</button>
-          <button class="poetry-nav poetry-next" id="poetryNext">›</button>
-          <div class="poetry-indicator" id="poetryIndicator"></div>
+          <div class="poetry-nav-bar">
+            <button class="poetry-nav-btn" id="poetryPrev">‹</button>
+            <div class="poetry-indicator" id="poetryIndicator"></div>
+            <button class="poetry-nav-btn" id="poetryNext">›</button>
+          </div>
         </div>
         
         <div class="g-grid" id="gGrid"></div>
         <div class="empty-msg" id="gEmpty">暂无图片 ✎ 开启编辑添加</div>
+      </div>
+    </div>
+
+    <!-- GAME DINO -->
+    <div class="page" id="page-dino">
+      <div class="page-inner">
+        <div class="p-deco"></div>
+        <div class="game-header">
+          <h2 class="pg-title">🦖 Dino Game</h2>
+          <p class="pg-sub">经典恐龙跑酷游戏</p>
+        </div>
+        <div class="game-nav">
+          <button class="game-nav-btn" data-page="tetris">🧱 Tetris</button>
+          <button class="game-nav-btn" data-page="breakout">🎯 Breakout</button>
+          <button class="game-nav-btn" data-page="game2048">🔢 2048</button>
+        </div>
+        <div class="dino-container">
+          <canvas id="dinoCanvas"></canvas>
+          <div class="dino-score">🏆 <span id="dinoScore">0</span></div>
+          <div class="dino-highscore">📊 <span id="dinoHighscore">0</span></div>
+          <button class="dino-help" id="dinoHelp">❓ 教程</button>
+          <div class="dino-overlay" id="dinoOverlay">
+            <div class="dino-overlay-content">
+              <div class="dino-title">🦖 DINO GAME</div>
+              <div class="dino-subtitle">按 空格键 或 点击 开始</div>
+              <div class="dino-hint">空格跳跃 · 躲避障碍物</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- GAME TETRIS -->
+    <div class="page" id="page-tetris">
+      <div class="page-inner">
+        <div class="p-deco"></div>
+        <div class="game-header">
+          <h2 class="pg-title">🧱 Tetris</h2>
+          <p class="pg-sub">经典俄罗斯方块</p>
+        </div>
+        <div class="game-nav">
+          <button class="game-nav-btn" data-page="dino">🦖 Dino</button>
+          <button class="game-nav-btn" data-page="breakout">🎯 Breakout</button>
+          <button class="game-nav-btn" data-page="game2048">🔢 2048</button>
+        </div>
+        <div class="tetris-container">
+          <div class="tetris-left">
+            <canvas id="tetrisCanvas"></canvas>
+          </div>
+          <div class="tetris-right">
+            <div class="tetris-info">
+              <div class="tetris-score">分数: <span id="tetrisScore">0</span></div>
+              <div class="tetris-level">等级: <span id="tetrisLevel">1</span></div>
+              <div class="tetris-lines">消除: <span id="tetrisLines">0</span></div>
+            </div>
+            <canvas id="tetrisNext"></canvas>
+            <button class="tetris-btn" id="tetrisStart">开始游戏</button>
+            <button class="tetris-btn tetris-btn-secondary" id="tetrisPause">暂停</button>
+            <button class="tetris-btn tetris-btn-secondary" id="tetrisHelp">❓ 教程</button>
+          </div>
+        </div>
+        <div class="tetris-controls">
+          <p>⬆️ 旋转 · ⬇️ 加速 · ⬅️➡️ 移动 · 空格 直接落下</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- GAME BREAKOUT -->
+    <div class="page" id="page-breakout">
+      <div class="page-inner">
+        <div class="p-deco"></div>
+        <div class="game-header">
+          <h2 class="pg-title">🎯 Breakout</h2>
+          <p class="pg-sub">经典打砖块游戏</p>
+        </div>
+        <div class="game-nav">
+          <button class="game-nav-btn" data-page="dino">🦖 Dino</button>
+          <button class="game-nav-btn" data-page="tetris">🧱 Tetris</button>
+          <button class="game-nav-btn" data-page="game2048">🔢 2048</button>
+        </div>
+        <div class="breakout-container">
+          <canvas id="breakoutCanvas"></canvas>
+          <button class="breakout-help" id="breakoutHelp">❓ 教程</button>
+          <div class="breakout-info">
+            <div class="breakout-score">分数: <span id="breakoutScore">0</span></div>
+            <div class="breakout-lives">生命: <span id="breakoutLives">3</span></div>
+          </div>
+          <div class="breakout-overlay" id="breakoutOverlay">
+            <div class="breakout-overlay-content">
+              <div class="breakout-title">🎯 BREAKOUT</div>
+              <div class="breakout-subtitle">按 空格键 或 点击 开始</div>
+              <div class="breakout-hint">← → 移动挡板 · 击碎所有砖块</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- GAME 2048 -->
+    <div class="page" id="page-game2048">
+      <div class="page-inner">
+        <div class="p-deco"></div>
+        <div class="game-header">
+          <h2 class="pg-title">🔢 2048</h2>
+          <p class="pg-sub">经典数字合并游戏</p>
+        </div>
+        <div class="game-nav">
+          <button class="game-nav-btn" data-page="dino">🦖 Dino</button>
+          <button class="game-nav-btn" data-page="tetris">🧱 Tetris</button>
+          <button class="game-nav-btn" data-page="breakout">🎯 Breakout</button>
+        </div>
+        <div class="theme-picker" id="themePicker">
+          <h4 class="theme-picker-title">🎨 选择主题</h4>
+          <div class="theme-colors">
+            <button class="theme-btn" data-theme="classic" title="经典"><span style="background:#eee"></span><span style="background:#edc22e"></span><span style="background:#edc22e"></span><span style="background:#eee"></span></button>
+            <button class="theme-btn" data-theme="tech" title="科技"><span style="background:#1a1a2e"></span><span style="background:#16213e"></span><span style="background:#0f3460"></span><span style="background:#533483"></span></button>
+            <button class="theme-btn" data-theme="ocean" title="海洋"><span style="background:#0077b6"></span><span style="background:#00b4d8"></span><span style="background:#90e0ef"></span><span style="background:#caf0f8"></span></button>
+            <button class="theme-btn" data-theme="forest" title="森林"><span style="background:#2d6a4f"></span><span style="background:#40916c"></span><span style="background:#52b788"></span><span style="background:#95d5b2"></span></button>
+            <button class="theme-btn" data-theme="sunset" title="日落"><span style="background:#7209b7"></span><span style="background:#f72585"></span><span style="background:#ff006e"></span><span style="background:#4361ee"></span></button>
+          </div>
+        </div>
+        <div class="game-container">
+          <div class="game-info">
+            <div class="game-score">
+              <div class="score-label">分数</div>
+              <div class="score-value" id="gameScore">0</div>
+            </div>
+            <div class="game-best">
+              <div class="score-label">最高分</div>
+              <div class="score-value" id="gameBest">0</div>
+            </div>
+          </div>
+          <button class="game-btn" id="newGameBtn">新游戏</button>
+          <button class="game-btn game-btn-secondary" id="gameHelp">帮助</button>
+          <div class="game-board" id="gameBoard"></div>
+          <div class="game-tips">
+            <p>W A S D 键控制移动</p>
+            <p>🎯 合并相同数字，达到 2048！</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="page" id="page-calendar">
+      <div class="page-inner">
+        <div class="p-deco"></div>
+        <div class="pg-title-wrap">
+          <div class="title-decoration">
+            <div class="decor-line"></div>
+            <div class="decor-dot"></div>
+            <div class="decor-line"></div>
+          </div>
+          <h2 class="pg-title">📅 Calendar</h2>
+          <div class="title-decoration">
+            <div class="decor-line"></div>
+            <div class="decor-dot"></div>
+            <div class="decor-line"></div>
+          </div>
+        </div>
+        <p class="pg-sub">心情日历与待办事项</p>
+        
+        <div class="calendar-container">
+          <!-- Calendar Header -->
+          <div class="calendar-header">
+            <button class="cal-nav" id="calPrev">‹</button>
+            <div class="cal-title" id="calTitle"></div>
+            <button class="cal-nav" id="calNext">›</button>
+          </div>
+          
+          <!-- Calendar Days Header -->
+          <div class="calendar-weekdays">
+            <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+          </div>
+          
+          <!-- Calendar Grid -->
+          <div class="calendar-grid" id="calendarGrid"></div>
+          
+          <!-- Mood Selection -->
+          <div class="mood-selector" id="moodSelector">
+            <h4>😊 选择心情</h4>
+            <div class="mood-cards">
+              <button class="mood-card" data-mood="happy">😄</button>
+              <button class="mood-card" data-mood="good">😊</button>
+              <button class="mood-card" data-mood="neutral">😐</button>
+              <button class="mood-card" data-mood="sad">😔</button>
+              <button class="mood-card" data-mood="angry">😠</button>
+            </div>
+          </div>
+          
+          <!-- Todo List -->
+          <div class="todo-section">
+            <div class="todo-header">
+              <h4>📝 待办事项</h4>
+              <div class="todo-selected-date" id="todoSelectedDate">📅 今天</div>
+            </div>
+            <input type="text" class="todo-input" id="todoInput" placeholder="添加新任务（按回车）...">
+            <div class="todo-list" id="todoList"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -231,6 +557,9 @@
     </div>
   </div>
 
+  <!-- Back to Top Button -->
+  <button id="backToTop" class="back-to-top" title="回到顶部">↑</button>
+
   <!-- Lightbox -->
   <div class="lightbox" id="lightbox" style="display:none">
     <button class="lightbox-close" onclick="App.hideLightbox()">✕</button>
@@ -255,6 +584,6 @@
     <div class="gv-counter" id="gvCounter"></div>
   </div>
 
-  <script src="src/js/app.js?v=13"></script>
+  <script src="src/js/app.js?v=14"></script>
 </body>
 </html>

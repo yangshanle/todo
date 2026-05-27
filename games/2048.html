@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔢 2048</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Segoe UI', sans-serif; 
+      background: #faf8ef; 
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .game-container {
+      width: 100%;
+      max-width: 400px;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .title {
+      font-size: 4rem;
+      font-weight: 700;
+      color: #776e65;
+    }
+    
+    .scores {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .score-box {
+      background: #bbada0;
+      border-radius: 4px;
+      padding: 8px 16px;
+      text-align: center;
+      min-width: 80px;
+    }
+    
+    .score-label {
+      font-size: 0.7rem;
+      color: #eee4da;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    
+    .score-value {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .btn {
+      background: #8f7a66;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 20px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn:hover {
+      background: #9f8b77;
+    }
+    
+    .btn-secondary {
+      background: #bbada0;
+    }
+    
+    .btn-secondary:hover {
+      background: #cbb9a0;
+    }
+    
+    .board {
+      background: #bbada0;
+      border-radius: 6px;
+      padding: 8px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    
+    .cell {
+      background: #cdc1b4;
+      border-radius: 4px;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 2rem;
+      transition: all 0.15s ease;
+    }
+    
+    .cell-2 { background: #eee4da; color: #776e65; }
+    .cell-4 { background: #ede0c8; color: #776e65; }
+    .cell-8 { background: #f2b179; color: #f9f6f2; }
+    .cell-16 { background: #f59563; color: #f9f6f2; }
+    .cell-32 { background: #f67c5f; color: #f9f6f2; }
+    .cell-64 { background: #f65e3b; color: #f9f6f2; }
+    .cell-128 { background: #edcf72; color: #f9f6f2; font-size: 1.5rem; }
+    .cell-256 { background: #edcc61; color: #f9f6f2; font-size: 1.5rem; }
+    .cell-512 { background: #edc850; color: #f9f6f2; font-size: 1.5rem; }
+    .cell-1024 { background: #edc53f; color: #f9f6f2; font-size: 1.2rem; }
+    .cell-2048 { background: #edc22e; color: #f9f6f2; font-size: 1.2rem; }
+    .cell-super { background: #3c3a32; color: #f9f6f2; font-size: 1rem; }
+    
+    .tips {
+      margin-top: 15px;
+      text-align: center;
+      color: #776e65;
+      font-size: 0.85rem;
+    }
+    
+    .nav-links {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    .nav-link {
+      padding: 8px 16px;
+      background: rgba(143,122,102,0.2);
+      border: 1px solid rgba(143,122,102,0.3);
+      border-radius: 99px;
+      color: #8f7a66;
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: all 0.3s;
+    }
+    
+    .nav-link:hover {
+      background: rgba(143,122,102,0.3);
+    }
+    
+    .back-home {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      padding: 8px 16px;
+      background: rgba(143,122,102,0.2);
+      border: 1px solid rgba(143,122,102,0.3);
+      border-radius: 99px;
+      color: #8f7a66;
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: all 0.3s;
+    }
+    
+    .back-home:hover {
+      background: rgba(184,148,92,0.3);
+      border-color: #b8945c;
+      color: #b8945c;
+    }
+    
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    
+    .modal-overlay.hidden {
+      display: none;
+    }
+    
+    .modal {
+      background: #faf8ef;
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 350px;
+      width: 90%;
+      text-align: center;
+    }
+    
+    .modal-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #776e65;
+      margin-bottom: 16px;
+    }
+    
+    .modal-body {
+      color: #776e65;
+      line-height: 1.6;
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    
+    .modal-btn {
+      background: #8f7a66;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 24px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    
+    .game-over-modal .modal-title {
+      color: #f65e3b;
+    }
+    
+    .win-modal .modal-title {
+      color: #edc22e;
+    }
+  </style>
+</head>
+<body>
+  <a href="../index.html" class="back-home">🏠 返回首页</a>
+  
+  <div class="game-container">
+    <div class="header">
+      <div class="title">2048</div>
+      <div class="scores">
+        <div class="score-box">
+          <div class="score-label">分数</div>
+          <div class="score-value" id="score">0</div>
+        </div>
+        <div class="score-box">
+          <div class="score-label">最高分</div>
+          <div class="score-value" id="best">0</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="controls">
+      <button class="btn" id="new-game">新游戏</button>
+      <button class="btn btn-secondary" id="help">帮助</button>
+    </div>
+    
+    <div class="board" id="board"></div>
+    
+    <div class="tips">
+      <p><strong>W A S D</strong> 键控制移动</p>
+      <p>🎯 合并相同数字，达到 2048！</p>
+    </div>
+  </div>
+  
+  <div class="nav-links">
+    <a href="dino.html" class="nav-link">🦖 Dino</a>
+    <a href="tetris.html" class="nav-link">🧱 Tetris</a>
+    <a href="breakout.html" class="nav-link">🎯 Breakout</a>
+  </div>
+  
+  <div class="modal-overlay hidden" id="help-modal">
+    <div class="modal">
+      <div class="modal-title">🎮 游戏帮助</div>
+      <div class="modal-body">
+        <p><strong>游戏目标：</strong><br>合并相同数字，达到 <strong style="color:#edc22e">2048</strong> 方块！</p>
+        <p style="margin-top:12px"><strong>操作说明：</strong></p>
+        <p><strong>W</strong> - 向上移动</p>
+        <p><strong>S</strong> - 向下移动</p>
+        <p><strong>A</strong> - 向左移动</p>
+        <p><strong>D</strong> - 向右移动</p>
+        <p style="margin-top:12px"><strong>技巧提示：</strong></p>
+        <p>• 尽量保持最大数字在角落</p>
+        <p>• 不要急于合并，思考几步后的布局</p>
+        <p>• 优先填满空白区域</p>
+      </div>
+      <button class="modal-btn" id="close-help">知道了</button>
+    </div>
+  </div>
+  
+  <div class="modal-overlay hidden" id="game-over-modal">
+    <div class="modal game-over-modal">
+      <div class="modal-title">💔 游戏结束</div>
+      <div class="modal-body" style="text-align:center;">
+        <p>得分: <strong id="final-score">0</strong></p>
+      </div>
+      <button class="modal-btn" id="restart-game">再来一局</button>
+    </div>
+  </div>
+  
+  <div class="modal-overlay hidden" id="win-modal">
+    <div class="modal win-modal">
+      <div class="modal-title">🎉 恭喜！</div>
+      <div class="modal-body" style="text-align:center;">
+        <p>你达到了 <strong style="color:#edc22e">2048</strong>！</p>
+        <p>得分: <strong id="win-score">0</strong></p>
+      </div>
+      <button class="modal-btn" id="continue-game">继续挑战</button>
+    </div>
+  </div>
+
+  <script>
+    const boardEl = document.getElementById('board');
+    const scoreEl = document.getElementById('score');
+    const bestEl = document.getElementById('best');
+    
+    const SIZE = 4;
+    let board = [];
+    let score = 0;
+    let best = parseInt(localStorage.getItem('2048_best') || '0');
+    let won = false;
+    
+    bestEl.textContent = best;
+    
+    function initBoard() {
+      board = Array(SIZE).fill(null).map(() => Array(SIZE).fill(0));
+      addRandomTile();
+      addRandomTile();
+      render();
+    }
+    
+    function addRandomTile() {
+      const empty = [];
+      for (let y = 0; y < SIZE; y++) {
+        for (let x = 0; x < SIZE; x++) {
+          if (board[y][x] === 0) {
+            empty.push({ x, y });
+          }
+        }
+      }
+      if (empty.length === 0) return false;
+      const pos = empty[Math.floor(Math.random() * empty.length)];
+      board[pos.y][pos.x] = Math.random() < 0.9 ? 2 : 4;
+      return true;
+    }
+    
+    function render() {
+      boardEl.innerHTML = '';
+      for (let y = 0; y < SIZE; y++) {
+        for (let x = 0; x < SIZE; x++) {
+          const cell = document.createElement('div');
+          cell.className = `cell${board[y][x] ? ' cell-' + (board[y][x] > 2048 ? 'super' : board[y][x]) : ''}`;
+          cell.textContent = board[y][x] || '';
+          boardEl.appendChild(cell);
+        }
+      }
+    }
+    
+    function move(direction) {
+      let moved = false;
+      let newBoard = Array(SIZE).fill(null).map(() => Array(SIZE).fill(0));
+      
+      if (direction === 'up') {
+        for (let x = 0; x < SIZE; x++) {
+          let col = board.map(row => row[x]).filter(n => n !== 0);
+          for (let i = 0; i < col.length - 1; i++) {
+            if (col[i] === col[i + 1]) {
+              col[i] *= 2;
+              score += col[i];
+              if (col[i] === 2048 && !won) {
+                won = true;
+                setTimeout(() => showWin(), 100);
+              }
+              col.splice(i + 1, 1);
+            }
+          }
+          for (let y = 0; y < SIZE; y++) {
+            if (newBoard[y][x] !== col[y]) {
+              moved = true;
+            }
+            newBoard[y][x] = col[y] || 0;
+          }
+        }
+      } else if (direction === 'down') {
+        for (let x = 0; x < SIZE; x++) {
+          let col = board.map(row => row[x]).filter(n => n !== 0);
+          for (let i = col.length - 1; i > 0; i--) {
+            if (col[i] === col[i - 1]) {
+              col[i] *= 2;
+              score += col[i];
+              if (col[i] === 2048 && !won) {
+                won = true;
+                setTimeout(() => showWin(), 100);
+              }
+              col.splice(i - 1, 1);
+            }
+          }
+          while (col.length < SIZE) col.unshift(0);
+          for (let y = 0; y < SIZE; y++) {
+            if (newBoard[y][x] !== col[y]) {
+              moved = true;
+            }
+            newBoard[y][x] = col[y] || 0;
+          }
+        }
+      } else if (direction === 'left') {
+        for (let y = 0; y < SIZE; y++) {
+          let row = board[y].filter(n => n !== 0);
+          for (let i = 0; i < row.length - 1; i++) {
+            if (row[i] === row[i + 1]) {
+              row[i] *= 2;
+              score += row[i];
+              if (row[i] === 2048 && !won) {
+                won = true;
+                setTimeout(() => showWin(), 100);
+              }
+              row.splice(i + 1, 1);
+            }
+          }
+          for (let x = 0; x < SIZE; x++) {
+            if (newBoard[y][x] !== row[x]) {
+              moved = true;
+            }
+            newBoard[y][x] = row[x] || 0;
+          }
+        }
+      } else if (direction === 'right') {
+        for (let y = 0; y < SIZE; y++) {
+          let row = board[y].filter(n => n !== 0);
+          for (let i = row.length - 1; i > 0; i--) {
+            if (row[i] === row[i - 1]) {
+              row[i] *= 2;
+              score += row[i];
+              if (row[i] === 2048 && !won) {
+                won = true;
+                setTimeout(() => showWin(), 100);
+              }
+              row.splice(i - 1, 1);
+            }
+          }
+          while (row.length < SIZE) row.unshift(0);
+          for (let x = 0; x < SIZE; x++) {
+            if (newBoard[y][x] !== row[x]) {
+              moved = true;
+            }
+            newBoard[y][x] = row[x] || 0;
+          }
+        }
+      }
+      
+      if (moved) {
+        board = newBoard;
+        addRandomTile();
+        scoreEl.textContent = score;
+        if (score > best) {
+          best = score;
+          localStorage.setItem('2048_best', best.toString());
+          bestEl.textContent = best;
+        }
+        render();
+        if (!canMove()) {
+          setTimeout(() => showGameOver(), 100);
+        }
+      }
+    }
+    
+    function canMove() {
+      for (let y = 0; y < SIZE; y++) {
+        for (let x = 0; x < SIZE; x++) {
+          if (board[y][x] === 0) return true;
+          if (x < SIZE - 1 && board[y][x] === board[y][x + 1]) return true;
+          if (y < SIZE - 1 && board[y][x] === board[y + 1][x]) return true;
+        }
+      }
+      return false;
+    }
+    
+    function showWin() {
+      document.getElementById('win-score').textContent = score;
+      document.getElementById('win-modal').classList.remove('hidden');
+    }
+    
+    function showGameOver() {
+      document.getElementById('final-score').textContent = score;
+      document.getElementById('game-over-modal').classList.remove('hidden');
+    }
+    
+    function newGame() {
+      score = 0;
+      won = false;
+      scoreEl.textContent = '0';
+      document.getElementById('game-over-modal').classList.add('hidden');
+      document.getElementById('win-modal').classList.add('hidden');
+      initBoard();
+    }
+    
+    document.getElementById('new-game').addEventListener('click', newGame);
+    document.getElementById('restart-game').addEventListener('click', newGame);
+    document.getElementById('continue-game').addEventListener('click', () => {
+      document.getElementById('win-modal').classList.add('hidden');
+    });
+    document.getElementById('help').addEventListener('click', () => {
+      document.getElementById('help-modal').classList.remove('hidden');
+    });
+    document.getElementById('close-help').addEventListener('click', () => {
+      document.getElementById('help-modal').classList.add('hidden');
+    });
+    
+    document.addEventListener('keydown', (e) => {
+      switch (e.key.toLowerCase()) {
+        case 'w': e.preventDefault(); move('up'); break;
+        case 's': e.preventDefault(); move('down'); break;
+        case 'a': e.preventDefault(); move('left'); break;
+        case 'd': e.preventDefault(); move('right'); break;
+      }
+    });
+    
+    initBoard();
+  </script>
+</body>
+</html>
