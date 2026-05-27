@@ -2,142 +2,310 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>🧱 Tetris</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      font-family: 'Courier New', monospace; 
-      background: #0a0a0a; 
+    body {
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #0a0a0a;
       min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
+      padding: 30px 20px;
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    .main-wrapper {
+      max-width: 520px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      margin-bottom: 16px;
+      color: #00ffff;
+      text-shadow: 0 0 20px rgba(0,255,255,0.5);
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-weight: 700;
+      letter-spacing: 2px;
+      font-size: 1.6rem;
+    }
+
+    .nav-links {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
       justify-content: center;
-      padding: 20px;
+    }
+
+    .nav-link {
+      padding: 6px 14px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 99px;
+      color: rgba(255,255,255,0.7);
+      text-decoration: none;
+      font-size: 0.8rem;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      transition: all 0.3s;
+    }
+
+    .nav-link:hover {
+      background: rgba(0,255,255,0.12);
+      border-color: rgba(0,255,255,0.3);
       color: #fff;
     }
-    
+
+    .back-home {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 100;
+      padding: 10px 20px;
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: none;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      letter-spacing: 0.5px;
+    }
+
+    .back-home:hover {
+      background: rgba(0, 255, 255, 0.1);
+      border-color: rgba(0, 255, 255, 0.3);
+      box-shadow: 0 4px 25px rgba(0, 255, 255, 0.15), inset 0 0 20px rgba(0, 255, 255, 0.05);
+      transform: translateY(-1px);
+      color: #fff;
+    }
+
     .game-container {
       display: flex;
       gap: 20px;
       flex-wrap: wrap;
       justify-content: center;
       align-items: flex-start;
+      width: 100%;
     }
-    
+
     .board {
       display: block;
       width: 200px;
       height: 400px;
       background: #0a0a0a;
-      border: 2px solid #00ffff;
+      border: 2px solid rgba(0,255,255,0.6);
       border-radius: 4px;
-      box-shadow: 0 0 20px rgba(0,255,255,0.3);
+      box-shadow: 0 0 20px rgba(0,255,255,0.2);
+      touch-action: none;
     }
-    
+
     .info-panel {
       display: flex;
       flex-direction: column;
       gap: 12px;
-      min-width: 120px;
+      min-width: 140px;
     }
-    
+
     .info {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
       border-radius: 4px;
       padding: 12px;
     }
-    
+
     .info-item {
       font-size: 0.85rem;
       color: #00ffff;
       text-shadow: 0 0 10px rgba(0,255,255,0.5);
       margin: 6px 0;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     }
-    
+
     #next-piece {
       display: block;
       width: 120px;
       height: 120px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
       border-radius: 4px;
     }
-    
+
     .btn {
       padding: 10px 20px;
       background: #00ffff;
       color: #000;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       font-weight: 700;
       cursor: pointer;
       transition: all 0.3s;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: 0.85rem;
+      -webkit-tap-highlight-color: transparent;
     }
-    
+
     .btn:hover {
       box-shadow: 0 0 15px rgba(0,255,255,0.5);
       transform: scale(1.02);
     }
-    
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
     .btn-secondary {
-      background: #333;
+      background: rgba(255,255,255,0.06);
       color: #00ffff;
-      border: 1px solid #00ffff;
+      border: 1px solid rgba(0,255,255,0.3);
     }
-    
-    .controls {
-      margin-top: 20px;
-      text-align: center;
-      color: #666;
-      font-size: 0.8rem;
-    }
-    
-    .nav-links {
-      margin-top: 20px;
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    
-    .nav-link {
-      padding: 8px 16px;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 99px;
-      color: #fff;
-      text-decoration: none;
-      font-size: 0.85rem;
-      transition: all 0.3s;
-    }
-    
-    .nav-link:hover {
-      background: rgba(0,255,255,0.2);
+
+    .btn-secondary:hover {
+      background: rgba(0,255,255,0.1);
       border-color: #00ffff;
     }
-    
-    .back-home {
+
+    .controls {
+      margin-top: 16px;
+      text-align: center;
+      color: rgba(255,255,255,0.35);
+      font-size: 0.8rem;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    }
+
+    .dpad {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      margin-top: 20px;
+      width: 100%;
+      max-width: 280px;
+    }
+
+    .dpad-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .dpad-btn {
+      width: 64px;
+      height: 64px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: #fff;
+      font-size: 1.6rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      touch-action: manipulation;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    }
+
+    .dpad-btn:active {
+      background: rgba(0,255,255,0.2);
+      border-color: rgba(0,255,255,0.4);
+      transform: scale(0.9);
+    }
+
+    .dpad-btn-wide {
+      width: auto;
+      padding: 0 24px;
+      font-size: 0.95rem;
+      gap: 6px;
+    }
+
+    .modal-overlay {
       position: fixed;
-      top: 20px;
-      left: 20px;
-      padding: 8px 16px;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 20px;
+    }
+
+    .modal-overlay.hidden {
+      display: none;
+    }
+
+    .modal-content {
+      background: rgba(20,20,20,0.95);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+
+    .modal-title {
+      font-size: 1.4rem;
+      color: #00ffff;
+      text-shadow: 0 0 15px rgba(0,255,255,0.4);
+      margin-bottom: 20px;
+      font-weight: 700;
+    }
+
+    .modal-body {
+      text-align: left;
+      color: rgba(255,255,255,0.8);
+      font-size: 0.9rem;
+      line-height: 1.8;
+      margin-bottom: 24px;
+    }
+
+    .modal-body kbd {
+      display: inline-block;
+      padding: 2px 8px;
       background: rgba(255,255,255,0.1);
       border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 99px;
+      border-radius: 4px;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: 0.8rem;
       color: #fff;
-      text-decoration: none;
-      font-size: 0.85rem;
-      transition: all 0.3s;
+      margin: 0 2px;
     }
-    
-    .back-home:hover {
-      background: rgba(184,148,92,0.3);
-      border-color: #b8945c;
+
+    .modal-body .rule-section {
+      margin-bottom: 12px;
     }
-    
+
+    .modal-body .rule-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .modal-body .rule-label {
+      color: #00ffff;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
     .game-over {
       position: fixed;
       top: 0;
@@ -150,70 +318,225 @@
       justify-content: center;
       z-index: 100;
     }
-    
+
     .game-over.hidden {
       display: none;
     }
-    
+
     .game-over-content {
       text-align: center;
+      background: rgba(20,20,20,0.95);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 320px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
     }
-    
+
     .game-over-title {
-      font-size: 2rem;
+      font-size: 1.8rem;
       color: #ff6b6b;
       margin-bottom: 16px;
+      font-weight: 700;
     }
-    
+
     .modal-btn {
-      padding: 10px 24px;
-      background: #ff6b6b;
-      color: #fff;
+      padding: 10px 28px;
+      background: #00ffff;
+      color: #000;
       border: none;
-      border-radius: 4px;
-      font-weight: 600;
+      border-radius: 8px;
+      font-weight: 700;
       cursor: pointer;
       transition: all 0.3s;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: 0.9rem;
+      -webkit-tap-highlight-color: transparent;
     }
-    
+
     .modal-btn:hover {
-      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(0,255,255,0.4);
+      transform: scale(1.03);
+    }
+
+    .modal-btn-danger {
+      background: #ff6b6b;
+      color: #fff;
+    }
+
+    .modal-btn-danger:hover {
+      box-shadow: 0 0 20px rgba(255,107,107,0.4);
+    }
+
+    @media (max-width: 600px), (pointer: coarse) {
+      body {
+        padding: 20px 10px;
+      }
+
+      h1 {
+        font-size: 1.2rem;
+        margin-bottom: 12px;
+      }
+
+      .nav-links {
+        margin-bottom: 12px;
+      }
+
+      .back-home {
+        top: 10px;
+        left: 10px;
+        padding: 6px 14px;
+        font-size: 0.75rem;
+      }
+
+      .game-container {
+        gap: 12px;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .board {
+        width: auto;
+        height: auto;
+      }
+
+      .info-panel {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        min-width: unset;
+        width: 100%;
+        gap: 8px;
+      }
+
+      .info {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 8px 16px;
+        width: 100%;
+      }
+
+      .info-item {
+        font-size: 0.8rem;
+        margin: 2px 0;
+      }
+
+      #next-piece {
+        width: 80px;
+        height: 80px;
+      }
+
+      .info-panel .btn {
+        padding: 8px 14px;
+        font-size: 0.8rem;
+        flex: 1;
+        min-width: 60px;
+      }
+
+      .controls {
+        display: none;
+      }
+
+      .dpad {
+        display: flex;
+      }
+
+      .modal-content {
+        padding: 24px 20px;
+      }
+
+      .game-over-content {
+        padding: 24px 20px;
+      }
     }
   </style>
 </head>
 <body>
-  <a href="../index.html" class="back-home">🏠 返回首页</a>
-  
-  <h1 style="margin-bottom: 20px; color: #00ffff; text-shadow: 0 0 20px rgba(0,255,255,0.5);">🧱 TETRIS</h1>
-  
-  <div class="game-container">
-    <canvas id="board"></canvas>
-    <div class="info-panel">
-      <div class="info">
-        <div class="info-item">分数: <span id="score">0</span></div>
-        <div class="info-item">等级: <span id="level">1</span></div>
-        <div class="info-item">消除: <span id="lines">0</span></div>
+  <a href="../index.html" class="back-home">← 返回首页</a>
+
+  <div class="main-wrapper">
+    <h1>🧱 TETRIS</h1>
+
+    <div class="nav-links">
+      <a href="dino.html" class="nav-link">🦖 Dino</a>
+      <a href="breakout.html" class="nav-link">🎯 Breakout</a>
+      <a href="2048.html" class="nav-link">🔢 2048</a>
+    </div>
+
+    <p style="text-align:center;color:#666;font-size:0.75rem;margin-top:12px">💡 提示：游戏界面在移动端可能体验不佳，建议在 PC 上游玩</p>
+
+    <div class="game-container">
+      <canvas id="board" class="board"></canvas>
+      <div class="info-panel">
+        <div class="info">
+          <div class="info-item">分数: <span id="score">0</span></div>
+          <div class="info-item">等级: <span id="level">1</span></div>
+          <div class="info-item">消除: <span id="lines">0</span></div>
+        </div>
+        <canvas id="next-piece"></canvas>
+        <button class="btn" id="start-btn">开始游戏</button>
+        <button class="btn btn-secondary" id="pause-btn">暂停</button>
+        <button class="btn btn-secondary" id="tutorial-btn">📖 教程</button>
       </div>
-      <canvas id="next-piece"></canvas>
-      <button class="btn" id="start-btn">开始游戏</button>
-      <button class="btn btn-secondary" id="pause-btn">暂停</button>
+    </div>
+
+    <div class="controls">
+      <p>⬆️ 旋转 · ⬇️ 加速 · ⬅️➡️ 移动 · 空格 直接落下</p>
+    </div>
+
+    <div class="dpad" id="dpad">
+      <div class="dpad-row">
+        <button class="dpad-btn" data-action="rotate" aria-label="旋转">↻</button>
+      </div>
+      <div class="dpad-row">
+        <button class="dpad-btn" data-action="left" aria-label="左移">←</button>
+        <button class="dpad-btn" data-action="down" aria-label="下移">↓</button>
+        <button class="dpad-btn" data-action="right" aria-label="右移">→</button>
+      </div>
+      <div class="dpad-row">
+        <button class="dpad-btn dpad-btn-wide" data-action="drop">⏬ 落下</button>
+        <button class="dpad-btn dpad-btn-wide" data-action="pause">⏸ 暂停</button>
+      </div>
     </div>
   </div>
-  
-  <div class="controls">
-    <p>⬆️ 旋转 · ⬇️ 加速 · ⬅️➡️ 移动 · 空格 直接落下</p>
+
+  <div class="modal-overlay hidden" id="tutorial-modal">
+    <div class="modal-content">
+      <div class="modal-title">📖 操作说明</div>
+      <div class="modal-body">
+        <div class="rule-section">
+          <div class="rule-label">🎮 键盘操作</div>
+          <p>
+            <kbd>←</kbd> <kbd>→</kbd> 左右移动 ·
+            <kbd>↑</kbd> 旋转 ·
+            <kbd>↓</kbd> 加速下落 ·
+            <kbd>空格</kbd> 直接落底
+          </p>
+        </div>
+        <div class="rule-section">
+          <div class="rule-label">📱 触摸操作</div>
+          <p>滑动游戏区域操作 · 上滑旋转 · 下滑加速 · 左右移动 · 点击开始/暂停</p>
+        </div>
+        <div class="rule-section">
+          <div class="rule-label">📋 游戏规则</div>
+          <p>控制方块填满水平行即可消除，消除行数越多等级越高，下落速度越快。</p>
+        </div>
+        <div class="rule-section">
+          <div class="rule-label">🏆 计分规则</div>
+          <p>每消除一行得 <strong>100 × 等级</strong> 分，同时消除多行分数叠加。</p>
+        </div>
+      </div>
+      <button class="modal-btn" id="tutorial-close-btn">知道了</button>
+    </div>
   </div>
-  
-  <div class="nav-links">
-    <a href="dino.html" class="nav-link">🦖 Dino</a>
-    <a href="breakout.html" class="nav-link">🎯 Breakout</a>
-    <a href="2048.html" class="nav-link">🔢 2048</a>
-  </div>
-  
+
   <div class="game-over hidden" id="game-over">
     <div class="game-over-content">
       <div class="game-over-title">💔 GAME OVER</div>
-      <p style="margin-bottom: 16px;">得分: <span id="final-score">0</span></p>
+      <p style="margin-bottom: 16px; color: rgba(255,255,255,0.7);">得分: <span id="final-score" style="color: #00ffff; font-weight: 700;">0</span></p>
       <button class="modal-btn" id="restart-btn">再来一局</button>
     </div>
   </div>
@@ -223,16 +546,13 @@
     const boardCtx = boardCanvas.getContext('2d');
     const nextCanvas = document.getElementById('next-piece');
     const nextCtx = nextCanvas.getContext('2d');
-    
+
     const COLS = 10;
     const ROWS = 20;
-    const CELL = 20;
-    
-    boardCanvas.width = COLS * CELL;
-    boardCanvas.height = ROWS * CELL;
-    nextCanvas.width = 120;
-    nextCanvas.height = 120;
-    
+    let CELL = 20;
+    const NEXT_CELL = 24;
+    const NEXT_SIZE = 120;
+
     const SHAPES = [
       [[1,1,1,1]],
       [[1,1],[1,1]],
@@ -242,9 +562,9 @@
       [[1,1,1],[1,0,0]],
       [[1,1,1],[0,0,1]]
     ];
-    
+
     const COLORS = ['#00ffff', '#ffff00', '#ff00ff', '#00ff00', '#ff6b6b', '#4ecdc4', '#45b7d1'];
-    
+
     let board = [];
     let currentPiece = null;
     let nextPiece = null;
@@ -253,11 +573,44 @@
     let lines = 0;
     let running = false;
     let paused = false;
-    
+    let loopTimer = null;
+    let resizeTimer = null;
+
+    function recalculateSize() {
+      const isMobile = window.innerWidth < 600;
+      if (isMobile) {
+        const padding = 20;
+        const boardBorder = 4;
+        const availableWidth = window.innerWidth - padding * 2 - boardBorder;
+        CELL = Math.floor(availableWidth / COLS);
+        CELL = Math.min(CELL, 20);
+        CELL = Math.max(CELL, 14);
+      } else {
+        CELL = 20;
+      }
+
+      boardCanvas.width = COLS * CELL;
+      boardCanvas.height = ROWS * CELL;
+
+      if (isMobile) {
+        const smallNext = Math.min(80, CELL * 5);
+        nextCanvas.width = smallNext;
+        nextCanvas.height = smallNext;
+      } else {
+        nextCanvas.width = NEXT_SIZE;
+        nextCanvas.height = NEXT_SIZE;
+      }
+
+      if (board.length > 0) {
+        drawBoard();
+        drawNext();
+      }
+    }
+
     function initBoard() {
       board = Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
     }
-    
+
     function createPiece() {
       const shapeIndex = Math.floor(Math.random() * SHAPES.length);
       return {
@@ -267,7 +620,7 @@
         y: 0
       };
     }
-    
+
     function isValidPosition(piece, offsetX = 0, offsetY = 0, newShape = null) {
       const shape = newShape || piece.shape;
       for (let y = 0; y < shape.length; y++) {
@@ -282,7 +635,7 @@
       }
       return true;
     }
-    
+
     function rotatePiece() {
       const shape = currentPiece.shape;
       const rotated = shape[0].map((_, i) => shape.map(row => row[i]).reverse());
@@ -291,7 +644,7 @@
         drawBoard();
       }
     }
-    
+
     function movePiece(dx, dy) {
       if (isValidPosition(currentPiece, dx, dy)) {
         currentPiece.x += dx;
@@ -303,7 +656,7 @@
         spawnPiece();
       }
     }
-    
+
     function hardDrop() {
       while (isValidPosition(currentPiece, 0, 1)) {
         currentPiece.y++;
@@ -312,7 +665,7 @@
       clearLines();
       spawnPiece();
     }
-    
+
     function lockPiece() {
       for (let y = 0; y < currentPiece.shape.length; y++) {
         for (let x = 0; x < currentPiece.shape[y].length; x++) {
@@ -326,7 +679,7 @@
         }
       }
     }
-    
+
     function clearLines() {
       let cleared = 0;
       for (let y = ROWS - 1; y >= 0; y--) {
@@ -344,23 +697,23 @@
         updateUI();
       }
     }
-    
+
     function spawnPiece() {
       currentPiece = nextPiece;
       nextPiece = createPiece();
       drawNext();
-      
+
       if (!isValidPosition(currentPiece)) {
         gameOver();
       } else {
         drawBoard();
       }
     }
-    
+
     function drawBoard() {
       boardCtx.fillStyle = '#0a0a0a';
       boardCtx.fillRect(0, 0, boardCanvas.width, boardCanvas.height);
-      
+
       for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
           if (board[y][x]) {
@@ -368,7 +721,7 @@
           }
         }
       }
-      
+
       const piece = currentPiece;
       for (let y = 0; y < piece.shape.length; y++) {
         for (let x = 0; x < piece.shape[y].length; x++) {
@@ -377,8 +730,9 @@
           }
         }
       }
-      
-      boardCtx.strokeStyle = '#333';
+
+      boardCtx.strokeStyle = 'rgba(255,255,255,0.05)';
+      boardCtx.lineWidth = 0.5;
       for (let y = 0; y <= ROWS; y++) {
         boardCtx.beginPath();
         boardCtx.moveTo(0, y * CELL);
@@ -392,57 +746,90 @@
         boardCtx.stroke();
       }
     }
-    
+
     function drawCell(ctx, x, y, color) {
+      const cx = x * CELL;
+      const cy = y * CELL;
+
       ctx.fillStyle = color;
       ctx.shadowColor = color;
-      ctx.shadowBlur = 10;
-      ctx.fillRect(x * CELL + 1, y * CELL + 1, CELL - 2, CELL - 2);
+      ctx.shadowBlur = 8;
+      ctx.fillRect(cx + 1, cy + 1, CELL - 2, CELL - 2);
       ctx.shadowBlur = 0;
+
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      ctx.fillRect(cx + 2, cy + 2, CELL - 4, CELL - 4);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillRect(cx + 2, cy + 2, CELL - 4, 1.5);
+      ctx.fillRect(cx + 2, cy + 2, 1.5, CELL - 4);
     }
-    
+
     function drawNext() {
+      const isMobile = window.innerWidth < 600;
+      const size = isMobile ? Math.min(80, CELL * 5) : NEXT_SIZE;
+      const cellSize = isMobile ? Math.min(16, CELL * 0.8) : NEXT_CELL;
+
       nextCtx.fillStyle = '#0a0a0a';
-      nextCtx.fillRect(0, 0, 120, 120);
-      
+      nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+
       if (!nextPiece) return;
-      
-      const offsetX = (120 - nextPiece.shape[0].length * 24) / 2;
-      const offsetY = (120 - nextPiece.shape.length * 24) / 2;
-      
+
+      const offsetX = (size - nextPiece.shape[0].length * cellSize) / 2;
+      const offsetY = (size - nextPiece.shape.length * cellSize) / 2;
+
       for (let y = 0; y < nextPiece.shape.length; y++) {
         for (let x = 0; x < nextPiece.shape[y].length; x++) {
           if (nextPiece.shape[y][x]) {
+            const cx = offsetX + x * cellSize;
+            const cy = offsetY + y * cellSize;
+            const pad = cellSize > 16 ? 2 : 1;
+            const innerPad = pad * 2;
+            const highlightSize = cellSize > 16 ? 1.5 : 1;
+
             nextCtx.fillStyle = nextPiece.color;
             nextCtx.shadowColor = nextPiece.color;
-            nextCtx.shadowBlur = 10;
-            nextCtx.fillRect(offsetX + x * 24 + 2, offsetY + y * 24 + 2, 20, 20);
+            nextCtx.shadowBlur = cellSize > 16 ? 8 : 4;
+            nextCtx.fillRect(cx + pad, cy + pad, cellSize - pad * 2, cellSize - pad * 2);
             nextCtx.shadowBlur = 0;
+
+            nextCtx.fillStyle = 'rgba(255,255,255,0.1)';
+            nextCtx.fillRect(cx + innerPad, cy + innerPad, cellSize - innerPad * 2, cellSize - innerPad * 2);
+
+            nextCtx.fillStyle = 'rgba(255,255,255,0.18)';
+            nextCtx.fillRect(cx + innerPad, cy + innerPad, cellSize - innerPad * 2, highlightSize);
+            nextCtx.fillRect(cx + innerPad, cy + innerPad, highlightSize, cellSize - innerPad * 2);
           }
         }
       }
     }
-    
+
     function updateUI() {
       document.getElementById('score').textContent = score;
       document.getElementById('level').textContent = level;
       document.getElementById('lines').textContent = lines;
     }
-    
+
     function gameLoop() {
       if (!running || paused) return;
-      
-      setTimeout(() => {
+
+      const delay = Math.max(200, 1200 - (level - 1) * 100);
+
+      loopTimer = setTimeout(() => {
         if (running && !paused) {
           movePiece(0, 1);
         }
-      }, Math.max(100, 1000 - (level - 1) * 100));
-      
-      requestAnimationFrame(gameLoop);
+        gameLoop();
+      }, delay);
     }
-    
+
     function startGame() {
+      if (loopTimer) {
+        clearTimeout(loopTimer);
+        loopTimer = null;
+      }
       initBoard();
+      recalculateSize();
       score = 0;
       level = 1;
       lines = 0;
@@ -454,28 +841,57 @@
       drawBoard();
       updateUI();
       document.getElementById('game-over').classList.add('hidden');
+      document.getElementById('pause-btn').textContent = '暂停';
+      document.querySelectorAll('.dpad-btn[data-action="pause"]').forEach(b => b.textContent = '⏸ 暂停');
       gameLoop();
     }
-    
+
     function pauseGame() {
       paused = !paused;
-      document.getElementById('pause-btn').textContent = paused ? '继续' : '暂停';
+      const text = paused ? '继续' : '暂停';
+      document.getElementById('pause-btn').textContent = text;
+      document.querySelectorAll('.dpad-btn[data-action="pause"]').forEach(b => {
+        b.textContent = paused ? '▶ 继续' : '⏸ 暂停';
+      });
       if (!paused) gameLoop();
     }
-    
+
     function gameOver() {
       running = false;
+      if (loopTimer) {
+        clearTimeout(loopTimer);
+        loopTimer = null;
+      }
       document.getElementById('final-score').textContent = score;
       document.getElementById('game-over').classList.remove('hidden');
     }
-    
+
+    function showTutorial() {
+      document.getElementById('tutorial-modal').classList.remove('hidden');
+    }
+
+    function hideTutorial() {
+      document.getElementById('tutorial-modal').classList.add('hidden');
+    }
+
     document.getElementById('start-btn').addEventListener('click', startGame);
     document.getElementById('pause-btn').addEventListener('click', pauseGame);
     document.getElementById('restart-btn').addEventListener('click', startGame);
-    
+    document.getElementById('tutorial-btn').addEventListener('click', showTutorial);
+    document.getElementById('tutorial-close-btn').addEventListener('click', hideTutorial);
+
     document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (!document.getElementById('tutorial-modal').classList.contains('hidden')) {
+          hideTutorial();
+          return;
+        }
+        if (!document.getElementById('game-over').classList.contains('hidden')) {
+          return;
+        }
+      }
       if (!running || paused) return;
-      
+
       switch (e.key) {
         case 'ArrowLeft': e.preventDefault(); movePiece(-1, 0); break;
         case 'ArrowRight': e.preventDefault(); movePiece(1, 0); break;
@@ -484,6 +900,133 @@
         case ' ': e.preventDefault(); hardDrop(); break;
       }
     });
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    let touchMoved = false;
+
+    boardCanvas.addEventListener('touchstart', (e) => {
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      touchStartTime = Date.now();
+      touchMoved = false;
+    }, { passive: true });
+
+    boardCanvas.addEventListener('touchmove', (e) => {
+      const touch = e.touches[0];
+      const dx = touch.clientX - touchStartX;
+      const dy = touch.clientY - touchStartY;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        touchMoved = true;
+      }
+    }, { passive: true });
+
+    boardCanvas.addEventListener('touchend', (e) => {
+      if (!touchMoved) {
+        if (!running) {
+          startGame();
+          return;
+        }
+        if (paused) {
+          pauseGame();
+          return;
+        }
+        return;
+      }
+
+      if (!running || paused) return;
+
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - touchStartX;
+      const dy = touch.clientY - touchStartY;
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+      const minSwipe = 30;
+
+      if (absDx < minSwipe && absDy < minSwipe) return;
+
+      e.preventDefault();
+
+      if (absDx > absDy) {
+        if (dx > 0) {
+          movePiece(1, 0);
+        } else {
+          movePiece(-1, 0);
+        }
+      } else {
+        if (dy > 0) {
+          movePiece(0, 1);
+        } else {
+          rotatePiece();
+        }
+      }
+    }, { passive: false });
+
+    boardCanvas.addEventListener('touchcancel', () => {
+      touchMoved = false;
+    }, { passive: true });
+
+    document.querySelectorAll('.dpad-btn').forEach(btn => {
+      const action = btn.dataset.action;
+
+      function handleDpadAction(e) {
+        e.preventDefault();
+
+        if (!running) {
+          startGame();
+          return;
+        }
+
+        if (paused) {
+          if (action === 'pause') {
+            pauseGame();
+          }
+          return;
+        }
+
+        switch (action) {
+          case 'left': movePiece(-1, 0); break;
+          case 'right': movePiece(1, 0); break;
+          case 'down': movePiece(0, 1); break;
+          case 'rotate': rotatePiece(); break;
+          case 'drop': hardDrop(); break;
+          case 'pause': pauseGame(); break;
+        }
+      }
+
+      btn.addEventListener('click', handleDpadAction);
+      btn.addEventListener('touchstart', handleDpadAction, { passive: false });
+    });
+
+    ['start-btn', 'pause-btn', 'restart-btn', 'tutorial-btn', 'tutorial-close-btn'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          el.click();
+        }, { passive: false });
+      }
+    });
+
+    function handleResize() {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        recalculateSize();
+        if (running) {
+          drawBoard();
+          drawNext();
+        }
+      }, 150);
+    }
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(handleResize, 300);
+    });
+
+    recalculateSize();
   </script>
 </body>
 </html>

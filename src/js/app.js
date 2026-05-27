@@ -102,6 +102,7 @@ const App = {
       this._ossInit();
       this.initReadCounter();
       this.initQuotes();
+      this.initKaomoji();
     } catch(e) { console.error('init error:', e); }
     // Easter eggs
     this._initEasterEggs();
@@ -243,7 +244,7 @@ const App = {
 
     let html = (filtered.length ? filtered.map((w, i)=>`
       <div class="w-card${w.featured?' w-featured':''}" data-id="${w.id}"${this.editMode?' draggable="true"':''}>
-        ${!this.editMode&&w.featured?'<div class="w-featured-badge">★ 精选</div>':''}
+        ${!this.editMode&&w.featured?'<div class="w-featured-badge">★</div>':''}
         <div class="w-card-acts">
           ${this.editMode?`<button class="w-card-btn${w.featured?' featured':''}" data-act="fw" data-id="${w.id}">${w.featured?'★':'☆'}</button>`:''}
           <button class="w-card-btn" data-act="ew" data-id="${w.id}">✎</button>
@@ -315,6 +316,7 @@ const App = {
       $('hpWorks').innerHTML = ws.map(w => `
         <div class="hp-work ${w.featured ? 'featured' : ''}" data-id="${w.id}">
           ${w.featured ? '<span class="star-badge">⭐</span>' : ''}
+          <span class="hp-w-date">${w.date||''}</span>
           <span class="hp-w-title">${esc(w.title)}</span>
           ${w.tags?.length ? `<div class="hp-w-tags">${w.tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
         </div>
@@ -547,9 +549,9 @@ const App = {
     `;
     // Timeline (experience + education)
     const tl = [...(d.experience||[]), ...(d.education||[])]
-      .sort((a,b)=>b.year.localeCompare(a.year));
+      .sort((a,b)=>a.year.localeCompare(b.year));
     $('tlWrap').innerHTML = `
-      ${tl.length?tl.map(item=>`
+      ${tl.length?tl.map((item, i)=>`
         <div class="tl-item" data-tl-id="${item.id}">
           <div class="tl-dot"></div>
           <div class="tl-body">
@@ -560,6 +562,7 @@ const App = {
             ${this.editMode?`<div class="tl-acts"><button class="tl-edit" data-tl-id="${item.id}">✎</button><button class="tl-del" data-tl-id="${item.id}">✕</button></div>`:''}
           </div>
         </div>
+        ${i < tl.length - 1 ? '<div class="tl-arrow">▾</div>' : ''}
       `).join(''):'<div style="color:var(--t3);font-size:0.85rem;padding:8px 0">暂无记录</div>'}
       ${this.editMode?'<button class="tl-add" id="tlAdd">+ 添加经历</button>':''}
     `;
@@ -576,7 +579,7 @@ const App = {
       title: isE ? '✎ 编辑经历' : '➕ 添加经历',
       body: `
         <div class="fg"><label>类型</label><select id="tl_type">${['experience','education'].map(t=>`<option value="${t}"${type===t?' selected':''}>${t==='experience'?'工作':'教育'}</option>`).join('')}</select></div>
-        <div class="fg"><label>年份</label><input id="tl_year" value="${esc(item?.year||'')}"></div>
+        <div class="fg"><label>年份</label><input id="tl_year" type="number" min="1900" max="2100" step="1" placeholder="如 2012" value="${esc(item?.year||'')}"></div>
         <div class="fg"><label>标题</label><input id="tl_title" value="${esc(item?.title||'')}"></div>
         <div class="fg"><label>副标题</label><input id="tl_sub" value="${esc(item?.subtitle||'')}"></div>
         <div class="fg"><label>描述</label><textarea id="tl_desc" rows="3">${esc(item?.desc||'')}</textarea></div>
@@ -836,10 +839,12 @@ const App = {
 
   closeMobileMenu() {
     const menu = $('mobileMenu');
-    const html = document.querySelector('html');
+    const toggle = $('menuToggle');
     if (menu && menu.classList.contains('show')) {
       menu.classList.remove('show');
-      html.classList.remove('no-scroll');
+      if (toggle) toggle.classList.remove('active');
+      document.body.style.overflow = '';
+      document.querySelector('html')?.classList.remove('no-scroll');
     }
   },
 
@@ -2378,24 +2383,25 @@ const App = {
     // Edit mode (password protected)
     $('editBtn').addEventListener('click', ()=>this.tryToggleEdit());
 
-    // Mobile menu
+    // Mobile menu - click items auto close
     $('menuToggle')?.addEventListener('click', ()=>this.toggleMobileMenu());
     $('mobileMenuClose')?.addEventListener('click', ()=>this.toggleMobileMenu());
     document.querySelectorAll('.mobile-tab').forEach(tab => {
       tab.addEventListener('click', ()=>{
         if (tab.dataset.page) {
           this.switchPage(tab.dataset.page);
+        } else {
+          this.closeMobileMenu();
         }
-        this.toggleMobileMenu();
       });
     });
     $('mobileEditBtn')?.addEventListener('click', ()=>{
       this.tryToggleEdit();
-      this.toggleMobileMenu();
+      this.closeMobileMenu();
     });
     $('mobileThemeBtn')?.addEventListener('click', ()=>{
       this.toggleTheme();
-      this.toggleMobileMenu();
+      this.closeMobileMenu();
     });
 
     // Password modal
@@ -3000,6 +3006,9 @@ const App = {
       contentEl.style.opacity = '1';
       contentEl.style.transform = 'translateY(0)';
     }, 300);
+  },
+
+  initKaomoji() {
   },
 
   // ===== MODAL =====

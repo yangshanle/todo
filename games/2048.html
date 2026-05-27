@@ -3,240 +3,408 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🔢 2048</title>
+  <title>2048</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      font-family: 'Segoe UI', sans-serif; 
-      background: #faf8ef; 
+
+    :root {
+      --bg: #121212;
+      --surface: #1e1e1e;
+      --surface2: #2a2a2a;
+      --text: #e0e0e0;
+      --text-dim: #888;
+      --text-light: #fff;
+      --border: #333;
+
+      --board-bg: #1a1a2e;
+      --cell-empty: #16213e;
+      --cell-2-bg: linear-gradient(135deg, #4a4a4a, #5a5a5a);
+      --cell-2-color: #e0e0e0;
+      --cell-4-bg: linear-gradient(135deg, #6a6a6a, #7a7a7a);
+      --cell-4-color: #e0e0e0;
+      --cell-8-bg: linear-gradient(135deg, #e67e22, #f39c12);
+      --cell-8-color: #fff;
+      --cell-16-bg: linear-gradient(135deg, #d35400, #e67e22);
+      --cell-16-color: #fff;
+      --cell-32-bg: linear-gradient(135deg, #c0392b, #e74c3c);
+      --cell-32-color: #fff;
+      --cell-64-bg: linear-gradient(135deg, #a93226, #c0392b);
+      --cell-64-color: #fff;
+      --cell-128-bg: linear-gradient(135deg, #f39c12, #f1c40f);
+      --cell-128-color: #fff;
+      --cell-256-bg: linear-gradient(135deg, #e67e22, #f39c12);
+      --cell-256-color: #fff;
+      --cell-512-bg: linear-gradient(135deg, #d35400, #e67e22);
+      --cell-512-color: #fff;
+      --cell-1024-bg: linear-gradient(135deg, #f1c40f, #f9e74a);
+      --cell-1024-color: #fff;
+      --cell-2048-bg: linear-gradient(135deg, #f39c12, #f1c40f);
+      --cell-2048-color: #fff;
+      --cell-super-bg: linear-gradient(135deg, #2c3e50, #34495e);
+      --cell-super-color: #ecf0f1;
+
+      --accent: #f39c12;
+      --accent2: #e67e22;
+      --score-bg: #1a1a2e;
+      --btn-bg: #2a2a3e;
+      --btn-hover: #3a3a4e;
+      --modal-bg: #1e1e2e;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: var(--bg);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 20px;
+      transition: background 0.4s ease;
+      color: var(--text);
     }
-    
+
+    .back-home {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      padding: 8px 18px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      letter-spacing: 0.3px;
+      transition: all 0.3s ease;
+      z-index: 50;
+    }
+
+    .back-home:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
     .game-container {
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
     }
-    
+
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
     }
-    
+
     .title {
-      font-size: 4rem;
+      font-size: 3.2rem;
       font-weight: 700;
-      color: #776e65;
+      color: var(--text-light);
+      letter-spacing: -1px;
     }
-    
+
     .scores {
       display: flex;
-      gap: 10px;
+      gap: 8px;
     }
-    
+
     .score-box {
-      background: #bbada0;
-      border-radius: 4px;
-      padding: 8px 16px;
+      background: var(--score-bg);
+      border-radius: 8px;
+      padding: 6px 14px;
       text-align: center;
-      min-width: 80px;
+      min-width: 72px;
+      border: 1px solid var(--border);
     }
-    
+
     .score-label {
-      font-size: 0.7rem;
-      color: #eee4da;
+      font-size: 0.65rem;
+      color: var(--text-dim);
       text-transform: uppercase;
       font-weight: 600;
+      letter-spacing: 0.5px;
     }
-    
+
     .score-value {
-      font-size: 1.2rem;
+      font-size: 1.15rem;
       font-weight: 700;
+      color: var(--text-light);
+    }
+
+    .theme-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .theme-btn {
+      padding: 5px 12px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: transparent;
+      color: var(--text-dim);
+      font-size: 0.74rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+
+    .theme-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .theme-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
       color: #fff;
     }
-    
+
     .controls {
       display: flex;
-      gap: 10px;
-      margin-bottom: 15px;
+      gap: 8px;
+      margin-bottom: 12px;
     }
-    
+
     .btn {
-      background: #8f7a66;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      padding: 10px 20px;
+      background: var(--btn-bg);
+      color: var(--text-light);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 18px;
       font-weight: 600;
+      font-size: 0.82rem;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.25s ease;
+      font-family: inherit;
     }
-    
+
     .btn:hover {
-      background: #9f8b77;
+      background: var(--btn-hover);
+      border-color: var(--accent);
     }
-    
+
     .btn-secondary {
-      background: #bbada0;
+      background: transparent;
+      color: var(--text-dim);
     }
-    
+
     .btn-secondary:hover {
-      background: #cbb9a0;
+      color: var(--accent);
     }
-    
+
+    .board-wrapper {
+      position: relative;
+      touch-action: none;
+      -ms-touch-action: none;
+    }
+
     .board {
-      background: #bbada0;
-      border-radius: 6px;
+      background: var(--board-bg);
+      border-radius: 8px;
       padding: 8px;
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 8px;
+      transition: background 0.4s ease;
     }
-    
+
     .cell {
-      background: #cdc1b4;
-      border-radius: 4px;
+      background: var(--cell-empty);
+      border-radius: 6px;
       aspect-ratio: 1;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
       font-size: 2rem;
-      transition: all 0.15s ease;
+      color: transparent;
+      transition: all 0.12s ease;
+      position: relative;
+      overflow: hidden;
     }
-    
-    .cell-2 { background: #eee4da; color: #776e65; }
-    .cell-4 { background: #ede0c8; color: #776e65; }
-    .cell-8 { background: #f2b179; color: #f9f6f2; }
-    .cell-16 { background: #f59563; color: #f9f6f2; }
-    .cell-32 { background: #f67c5f; color: #f9f6f2; }
-    .cell-64 { background: #f65e3b; color: #f9f6f2; }
-    .cell-128 { background: #edcf72; color: #f9f6f2; font-size: 1.5rem; }
-    .cell-256 { background: #edcc61; color: #f9f6f2; font-size: 1.5rem; }
-    .cell-512 { background: #edc850; color: #f9f6f2; font-size: 1.5rem; }
-    .cell-1024 { background: #edc53f; color: #f9f6f2; font-size: 1.2rem; }
-    .cell-2048 { background: #edc22e; color: #f9f6f2; font-size: 1.2rem; }
-    .cell-super { background: #3c3a32; color: #f9f6f2; font-size: 1rem; }
-    
+
+    .cell.pop-in {
+      animation: popIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .cell.merge-flash::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(255,255,255,0.6), transparent 70%);
+      animation: mergeFlash 0.35s ease-out forwards;
+      pointer-events: none;
+      border-radius: inherit;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0); opacity: 0; }
+      60% { transform: scale(1.12); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes mergeFlash {
+      0% { opacity: 1; transform: scale(0.5); }
+      100% { opacity: 0; transform: scale(2); }
+    }
+
+    .cell-2 { background: var(--cell-2-bg); color: var(--cell-2-color); }
+    .cell-4 { background: var(--cell-4-bg); color: var(--cell-4-color); }
+    .cell-8 { background: var(--cell-8-bg); color: var(--cell-8-color); }
+    .cell-16 { background: var(--cell-16-bg); color: var(--cell-16-color); }
+    .cell-32 { background: var(--cell-32-bg); color: var(--cell-32-color); }
+    .cell-64 { background: var(--cell-64-bg); color: var(--cell-64-color); }
+    .cell-128 { background: var(--cell-128-bg); color: var(--cell-128-color); font-size: 1.5rem; }
+    .cell-256 { background: var(--cell-256-bg); color: var(--cell-256-color); font-size: 1.5rem; }
+    .cell-512 { background: var(--cell-512-bg); color: var(--cell-512-color); font-size: 1.5rem; }
+    .cell-1024 { background: var(--cell-1024-bg); color: var(--cell-1024-color); font-size: 1.15rem; }
+    .cell-2048 { background: var(--cell-2048-bg); color: var(--cell-2048-color); font-size: 1.15rem; }
+    .cell-super { background: var(--cell-super-bg); color: var(--cell-super-color); font-size: 1rem; }
+
     .tips {
-      margin-top: 15px;
+      margin-top: 14px;
       text-align: center;
-      color: #776e65;
-      font-size: 0.85rem;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      line-height: 1.6;
     }
-    
+
+    .tips strong {
+      color: var(--accent);
+    }
+
     .nav-links {
-      margin-top: 20px;
+      margin-top: 16px;
       display: flex;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
       justify-content: center;
     }
-    
+
     .nav-link {
-      padding: 8px 16px;
-      background: rgba(143,122,102,0.2);
-      border: 1px solid rgba(143,122,102,0.3);
-      border-radius: 99px;
-      color: #8f7a66;
+      padding: 6px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--text-dim);
       text-decoration: none;
-      font-size: 0.85rem;
-      transition: all 0.3s;
+      font-size: 0.8rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      transition: all 0.3s ease;
     }
-    
+
     .nav-link:hover {
-      background: rgba(143,122,102,0.3);
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
     }
-    
-    .back-home {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      padding: 8px 16px;
-      background: rgba(143,122,102,0.2);
-      border: 1px solid rgba(143,122,102,0.3);
-      border-radius: 99px;
-      color: #8f7a66;
-      text-decoration: none;
-      font-size: 0.85rem;
-      transition: all 0.3s;
-    }
-    
-    .back-home:hover {
-      background: rgba(184,148,92,0.3);
-      border-color: #b8945c;
-      color: #b8945c;
-    }
-    
+
     .modal-overlay {
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.5);
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 100;
     }
-    
+
     .modal-overlay.hidden {
       display: none;
     }
-    
+
     .modal {
-      background: #faf8ef;
-      border-radius: 8px;
-      padding: 24px;
-      max-width: 350px;
+      background: var(--modal-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      max-width: 340px;
       width: 90%;
       text-align: center;
     }
-    
+
     .modal-title {
-      font-size: 1.5rem;
+      font-size: 1.4rem;
       font-weight: 700;
-      color: #776e65;
-      margin-bottom: 16px;
+      color: var(--text-light);
+      margin-bottom: 14px;
     }
-    
+
     .modal-body {
-      color: #776e65;
-      line-height: 1.6;
-      font-size: 0.9rem;
+      color: var(--text-dim);
+      line-height: 1.7;
+      font-size: 0.88rem;
       margin-bottom: 20px;
       text-align: left;
     }
-    
+
+    .modal-body p {
+      margin-top: 6px;
+    }
+
     .modal-btn {
-      background: #8f7a66;
+      background: var(--accent);
       color: #fff;
       border: none;
-      border-radius: 4px;
-      padding: 10px 24px;
+      border-radius: 8px;
+      padding: 10px 28px;
       font-weight: 600;
+      font-size: 0.88rem;
       cursor: pointer;
+      transition: all 0.25s ease;
+      font-family: inherit;
     }
-    
-    .game-over-modal .modal-title {
-      color: #f65e3b;
+
+    .modal-btn:hover {
+      background: var(--accent2);
+      transform: translateY(-1px);
     }
-    
-    .win-modal .modal-title {
-      color: #edc22e;
+
+    .game-over-modal .modal-title { color: #e74c3c; }
+    .win-modal .modal-title { color: var(--accent); }
+
+    @media (max-width: 480px) {
+      body { padding: 12px; }
+      .game-container { max-width: 100%; }
+      .title { font-size: 2.4rem; }
+      .cell { font-size: 1.4rem; }
+      .cell-128, .cell-256, .cell-512 { font-size: 1.05rem; }
+      .cell-1024, .cell-2048 { font-size: 0.85rem; }
+      .cell-super { font-size: 0.85rem; }
+      .score-box { min-width: 60px; padding: 4px 10px; }
+      .score-value { font-size: 1rem; }
+      .btn { padding: 7px 14px; font-size: 0.76rem; }
+      .back-home { top: 10px; left: 10px; padding: 6px 14px; font-size: 0.74rem; }
+      .theme-btn { padding: 4px 10px; font-size: 0.7rem; }
+    }
+
+    @media (max-width: 360px) {
+      body { padding: 8px; }
+      .title { font-size: 2rem; }
+      .cell { font-size: 1.15rem; }
+      .cell-128, .cell-256, .cell-512 { font-size: 0.9rem; }
+      .cell-1024, .cell-2048, .cell-super { font-size: 0.75rem; }
+      .header { flex-direction: column; gap: 8px; }
+      .scores { width: 100%; justify-content: flex-end; }
+      .board { padding: 5px; gap: 5px; }
+      .score-box { min-width: 52px; padding: 3px 8px; }
+      .score-value { font-size: 0.85rem; }
+      .btn { padding: 6px 12px; font-size: 0.7rem; }
+      .back-home { font-size: 0.65rem; padding: 4px 10px; }
+      .theme-btn { font-size: 0.6rem; padding: 3px 8px; }
     }
   </style>
 </head>
 <body>
-  <a href="../index.html" class="back-home">🏠 返回首页</a>
-  
+  <a href="../index.html" class="back-home">&#8592; 返回首页</a>
+
   <div class="game-container">
     <div class="header">
       <div class="title">2048</div>
@@ -251,61 +419,71 @@
         </div>
       </div>
     </div>
-    
+
+    <div class="theme-bar" id="theme-bar">
+      <button class="theme-btn active" data-theme="classic">经典</button>
+      <button class="theme-btn" data-theme="tech">科技蓝</button>
+      <button class="theme-btn" data-theme="forest">森林绿</button>
+      <button class="theme-btn" data-theme="sunset">日落橙</button>
+      <button class="theme-btn" data-theme="cyber">赛博紫</button>
+    </div>
+
     <div class="controls">
       <button class="btn" id="new-game">新游戏</button>
       <button class="btn btn-secondary" id="help">帮助</button>
     </div>
-    
+
+    <div class="nav-links">
+      <a href="dino.html" class="nav-link">Dino</a>
+      <a href="tetris.html" class="nav-link">Tetris</a>
+      <a href="breakout.html" class="nav-link">Breakout</a>
+    </div>
+
+    <p style="text-align:center;color:#666;font-size:0.75rem;margin-top:12px">💡 提示：游戏界面在移动端可能体验不佳，建议在 PC 上游玩</p>
+
     <div class="board" id="board"></div>
-    
+
     <div class="tips">
-      <p><strong>W A S D</strong> 键控制移动</p>
-      <p>🎯 合并相同数字，达到 2048！</p>
+      <p><strong>W</strong> <strong>A</strong> <strong>S</strong> <strong>D</strong> 键或滑动屏幕控制移动</p>
+      <p style="margin-top:2px;font-size:0.75rem;">合并相同数字，达到 2048！</p>
     </div>
   </div>
-  
-  <div class="nav-links">
-    <a href="dino.html" class="nav-link">🦖 Dino</a>
-    <a href="tetris.html" class="nav-link">🧱 Tetris</a>
-    <a href="breakout.html" class="nav-link">🎯 Breakout</a>
-  </div>
-  
+
   <div class="modal-overlay hidden" id="help-modal">
     <div class="modal">
-      <div class="modal-title">🎮 游戏帮助</div>
+      <div class="modal-title">游戏帮助</div>
       <div class="modal-body">
-        <p><strong>游戏目标：</strong><br>合并相同数字，达到 <strong style="color:#edc22e">2048</strong> 方块！</p>
-        <p style="margin-top:12px"><strong>操作说明：</strong></p>
-        <p><strong>W</strong> - 向上移动</p>
-        <p><strong>S</strong> - 向下移动</p>
-        <p><strong>A</strong> - 向左移动</p>
-        <p><strong>D</strong> - 向右移动</p>
-        <p style="margin-top:12px"><strong>技巧提示：</strong></p>
-        <p>• 尽量保持最大数字在角落</p>
-        <p>• 不要急于合并，思考几步后的布局</p>
-        <p>• 优先填满空白区域</p>
+        <p><strong>目标：</strong> 合并相同数字，达到 <strong style="color:var(--accent)">2048</strong> 方块！</p>
+        <p style="margin-top:10px"><strong>操作：</strong></p>
+        <p><strong>W</strong> — 向上移动</p>
+        <p><strong>S</strong> — 向下移动</p>
+        <p><strong>A</strong> — 向左移动</p>
+        <p><strong>D</strong> — 向右移动</p>
+        <p style="margin-top:10px"><strong>手机操作：</strong></p>
+        <p>在棋盘区域滑动切换方向</p>
+        <p style="margin-top:10px"><strong>技巧：</strong></p>
+        <p>尽量保持最大数字在角落，不要急于合并。</p>
       </div>
       <button class="modal-btn" id="close-help">知道了</button>
     </div>
   </div>
-  
+
   <div class="modal-overlay hidden" id="game-over-modal">
     <div class="modal game-over-modal">
-      <div class="modal-title">💔 游戏结束</div>
+      <div class="modal-title">游戏结束</div>
       <div class="modal-body" style="text-align:center;">
-        <p>得分: <strong id="final-score">0</strong></p>
+        <p>得分: <strong id="final-score" style="color:var(--text-light);font-size:1.2rem;">0</strong></p>
       </div>
       <button class="modal-btn" id="restart-game">再来一局</button>
     </div>
   </div>
-  
+
   <div class="modal-overlay hidden" id="win-modal">
     <div class="modal win-modal">
-      <div class="modal-title">🎉 恭喜！</div>
+      <div class="modal-title">恭喜！</div>
       <div class="modal-body" style="text-align:center;">
-        <p>你达到了 <strong style="color:#edc22e">2048</strong>！</p>
-        <p>得分: <strong id="win-score">0</strong></p>
+        <p>你达到了 <strong style="color:var(--accent);font-size:1.3rem;">2048</strong>！</p>
+        <p style="margin-top:6px;">得分: <strong id="win-score" style="color:var(--text-light);">0</strong></p>
       </div>
       <button class="modal-btn" id="continue-game">继续挑战</button>
     </div>
@@ -315,22 +493,205 @@
     const boardEl = document.getElementById('board');
     const scoreEl = document.getElementById('score');
     const bestEl = document.getElementById('best');
-    
+
     const SIZE = 4;
     let board = [];
     let score = 0;
     let best = parseInt(localStorage.getItem('2048_best') || '0');
     let won = false;
-    
+    let currentTheme = 'classic';
+
     bestEl.textContent = best;
-    
+
+    const themes = {
+      classic: {
+        '--bg': '#121212',
+        '--surface': '#1e1e1e',
+        '--surface2': '#2a2a2a',
+        '--text': '#e0e0e0',
+        '--text-dim': '#888',
+        '--text-light': '#fff',
+        '--border': '#333',
+        '--board-bg': '#1a1a2e',
+        '--cell-empty': '#16213e',
+        '--cell-2-bg': 'linear-gradient(135deg, #4a4a4a, #5a5a5a)',
+        '--cell-2-color': '#e0e0e0',
+        '--cell-4-bg': 'linear-gradient(135deg, #6a6a6a, #7a7a7a)',
+        '--cell-4-color': '#e0e0e0',
+        '--cell-8-bg': 'linear-gradient(135deg, #e67e22, #f39c12)',
+        '--cell-16-bg': 'linear-gradient(135deg, #d35400, #e67e22)',
+        '--cell-32-bg': 'linear-gradient(135deg, #c0392b, #e74c3c)',
+        '--cell-64-bg': 'linear-gradient(135deg, #a93226, #c0392b)',
+        '--cell-128-bg': 'linear-gradient(135deg, #f39c12, #f1c40f)',
+        '--cell-256-bg': 'linear-gradient(135deg, #e67e22, #f39c12)',
+        '--cell-512-bg': 'linear-gradient(135deg, #d35400, #e67e22)',
+        '--cell-1024-bg': 'linear-gradient(135deg, #f1c40f, #f9e74a)',
+        '--cell-2048-bg': 'linear-gradient(135deg, #f39c12, #f1c40f)',
+        '--cell-super-bg': 'linear-gradient(135deg, #2c3e50, #34495e)',
+        '--cell-super-color': '#ecf0f1',
+        '--accent': '#f39c12',
+        '--accent2': '#e67e22',
+        '--score-bg': '#1a1a2e',
+        '--btn-bg': '#2a2a3e',
+        '--btn-hover': '#3a3a4e',
+        '--modal-bg': '#1e1e2e'
+      },
+      tech: {
+        '--bg': '#0a0e1a',
+        '--surface': '#111827',
+        '--surface2': '#1f2937',
+        '--text': '#e0e7ff',
+        '--text-dim': '#64748b',
+        '--text-light': '#f8fafc',
+        '--border': '#1e3a5f',
+        '--board-bg': '#0f172a',
+        '--cell-empty': '#1a2340',
+        '--cell-2-bg': 'linear-gradient(135deg, #1e3a5f, #2563eb)',
+        '--cell-2-color': '#e0e7ff',
+        '--cell-4-bg': 'linear-gradient(135deg, #1e40af, #3b82f6)',
+        '--cell-4-color': '#e0e7ff',
+        '--cell-8-bg': 'linear-gradient(135deg, #0369a1, #0ea5e9)',
+        '--cell-16-bg': 'linear-gradient(135deg, #0284c7, #38bdf8)',
+        '--cell-32-bg': 'linear-gradient(135deg, #1d4ed8, #60a5fa)',
+        '--cell-64-bg': 'linear-gradient(135deg, #2563eb, #93c5fd)',
+        '--cell-128-bg': 'linear-gradient(135deg, #0ea5e9, #7dd3fc)',
+        '--cell-256-bg': 'linear-gradient(135deg, #0284c7, #38bdf8)',
+        '--cell-512-bg': 'linear-gradient(135deg, #0369a1, #0ea5e9)',
+        '--cell-1024-bg': 'linear-gradient(135deg, #1d4ed8, #3b82f6)',
+        '--cell-2048-bg': 'linear-gradient(135deg, #2563eb, #60a5fa)',
+        '--cell-super-bg': 'linear-gradient(135deg, #0a0e1a, #1e3a5f)',
+        '--cell-super-color': '#e0e7ff',
+        '--accent': '#3b82f6',
+        '--accent2': '#2563eb',
+        '--score-bg': '#0f172a',
+        '--btn-bg': '#1f2937',
+        '--btn-hover': '#374151',
+        '--modal-bg': '#111827'
+      },
+      forest: {
+        '--bg': '#0a120c',
+        '--surface': '#111a14',
+        '--surface2': '#1a2e22',
+        '--text': '#d1fae5',
+        '--text-dim': '#6b8f7a',
+        '--text-light': '#ecfdf5',
+        '--border': '#1e3a2a',
+        '--board-bg': '#0d1f15',
+        '--cell-empty': '#122a1b',
+        '--cell-2-bg': 'linear-gradient(135deg, #1a3a2a, #2d6a4f)',
+        '--cell-2-color': '#d1fae5',
+        '--cell-4-bg': 'linear-gradient(135deg, #1b4332, #40916c)',
+        '--cell-4-color': '#d1fae5',
+        '--cell-8-bg': 'linear-gradient(135deg, #2d6a4f, #52b788)',
+        '--cell-16-bg': 'linear-gradient(135deg, #1b4332, #40916c)',
+        '--cell-32-bg': 'linear-gradient(135deg, #14532d, #22c55e)',
+        '--cell-64-bg': 'linear-gradient(135deg, #166534, #16a34a)',
+        '--cell-128-bg': 'linear-gradient(135deg, #15803d, #4ade80)',
+        '--cell-256-bg': 'linear-gradient(135deg, #166534, #22c55e)',
+        '--cell-512-bg': 'linear-gradient(135deg, #14532d, #16a34a)',
+        '--cell-1024-bg': 'linear-gradient(135deg, #15803d, #4ade80)',
+        '--cell-2048-bg': 'linear-gradient(135deg, #22c55e, #86efac)',
+        '--cell-super-bg': 'linear-gradient(135deg, #0a120c, #1a3a2a)',
+        '--cell-super-color': '#d1fae5',
+        '--accent': '#22c55e',
+        '--accent2': '#16a34a',
+        '--score-bg': '#0d1f15',
+        '--btn-bg': '#1a2e22',
+        '--btn-hover': '#2a4232',
+        '--modal-bg': '#111a14'
+      },
+      sunset: {
+        '--bg': '#1a0f0a',
+        '--surface': '#241812',
+        '--surface2': '#3a2218',
+        '--text': '#fde8d0',
+        '--text-dim': '#b88970',
+        '--text-light': '#fff5ed',
+        '--border': '#4a2a1a',
+        '--board-bg': '#241410',
+        '--cell-empty': '#3a1e14',
+        '--cell-2-bg': 'linear-gradient(135deg, #5a2a18, #c2410c)',
+        '--cell-2-color': '#fde8d0',
+        '--cell-4-bg': 'linear-gradient(135deg, #7a3218, #ea580c)',
+        '--cell-4-color': '#fde8d0',
+        '--cell-8-bg': 'linear-gradient(135deg, #c2410c, #f97316)',
+        '--cell-16-bg': 'linear-gradient(135deg, #9a3412, #ea580c)',
+        '--cell-32-bg': 'linear-gradient(135deg, #7a2a0e, #c2410c)',
+        '--cell-64-bg': 'linear-gradient(135deg, #9a3412, #ea580c)',
+        '--cell-128-bg': 'linear-gradient(135deg, #c2410c, #fbbf24)',
+        '--cell-256-bg': 'linear-gradient(135deg, #ea580c, #f59e0b)',
+        '--cell-512-bg': 'linear-gradient(135deg, #c2410c, #f97316)',
+        '--cell-1024-bg': 'linear-gradient(135deg, #f97316, #fbbf24)',
+        '--cell-2048-bg': 'linear-gradient(135deg, #f59e0b, #fde68a)',
+        '--cell-super-bg': 'linear-gradient(135deg, #1a0f0a, #4a2a1a)',
+        '--cell-super-color': '#fde8d0',
+        '--accent': '#f97316',
+        '--accent2': '#ea580c',
+        '--score-bg': '#241410',
+        '--btn-bg': '#3a2218',
+        '--btn-hover': '#4a2a1a',
+        '--modal-bg': '#241812'
+      },
+      cyber: {
+        '--bg': '#0e0a1a',
+        '--surface': '#161130',
+        '--surface2': '#221a45',
+        '--text': '#e0d4ff',
+        '--text-dim': '#7c6fa8',
+        '--text-light': '#f0ebff',
+        '--border': '#3a2a6a',
+        '--board-bg': '#120e28',
+        '--cell-empty': '#1a1440',
+        '--cell-2-bg': 'linear-gradient(135deg, #2a1a6a, #6366f1)',
+        '--cell-2-color': '#e0d4ff',
+        '--cell-4-bg': 'linear-gradient(135deg, #3a2a8a, #818cf8)',
+        '--cell-4-color': '#e0d4ff',
+        '--cell-8-bg': 'linear-gradient(135deg, #6d28d9, #a78bfa)',
+        '--cell-16-bg': 'linear-gradient(135deg, #7c3aed, #c4b5fd)',
+        '--cell-32-bg': 'linear-gradient(135deg, #5b21b6, #8b5cf6)',
+        '--cell-64-bg': 'linear-gradient(135deg, #6d28d9, #a78bfa)',
+        '--cell-128-bg': 'linear-gradient(135deg, #7c3aed, #c4b5fd)',
+        '--cell-256-bg': 'linear-gradient(135deg, #8b5cf6, #ddd6fe)',
+        '--cell-512-bg': 'linear-gradient(135deg, #6d28d9, #a78bfa)',
+        '--cell-1024-bg': 'linear-gradient(135deg, #7c3aed, #c4b5fd)',
+        '--cell-2048-bg': 'linear-gradient(135deg, #a78bfa, #e0d4ff)',
+        '--cell-super-bg': 'linear-gradient(135deg, #0e0a1a, #2a1a6a)',
+        '--cell-super-color': '#e0d4ff',
+        '--accent': '#7c3aed',
+        '--accent2': '#6d28d9',
+        '--score-bg': '#120e28',
+        '--btn-bg': '#221a45',
+        '--btn-hover': '#322a55',
+        '--modal-bg': '#161130'
+      }
+    };
+
+    function applyTheme(themeName) {
+      const theme = themes[themeName];
+      if (!theme) return;
+      currentTheme = themeName;
+      const root = document.documentElement;
+      for (const [key, value] of Object.entries(theme)) {
+        root.style.setProperty(key, value);
+      }
+      document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === themeName);
+      });
+      render();
+    }
+
+    document.getElementById('theme-bar').addEventListener('click', (e) => {
+      const btn = e.target.closest('.theme-btn');
+      if (btn) applyTheme(btn.dataset.theme);
+    });
+
     function initBoard() {
       board = Array(SIZE).fill(null).map(() => Array(SIZE).fill(0));
       addRandomTile();
       addRandomTile();
       render();
     }
-    
+
     function addRandomTile() {
       const empty = [];
       for (let y = 0; y < SIZE; y++) {
@@ -345,26 +706,49 @@
       board[pos.y][pos.x] = Math.random() < 0.9 ? 2 : 4;
       return true;
     }
-    
-    function render() {
+
+    function render(mergePositions) {
       boardEl.innerHTML = '';
       for (let y = 0; y < SIZE; y++) {
         for (let x = 0; x < SIZE; x++) {
           const cell = document.createElement('div');
-          cell.className = `cell${board[y][x] ? ' cell-' + (board[y][x] > 2048 ? 'super' : board[y][x]) : ''}`;
-          cell.textContent = board[y][x] || '';
+          const val = board[y][x];
+          cell.className = `cell${val ? ' cell-' + (val > 2048 ? 'super' : val) : ''}`;
+          cell.textContent = val || '';
+          const idx = y * SIZE + x;
+          if (val && !cell.className.includes('cell-super')) {
+            if (mergePositions && mergePositions.has(idx)) {
+              cell.classList.add('merge-flash');
+            }
+          }
           boardEl.appendChild(cell);
         }
       }
+      requestAnimationFrame(() => {
+        const cells = boardEl.querySelectorAll('.cell:not(.cell-empty)');
+        cells.forEach(c => {
+          if (!c.classList.contains('merge-flash')) {
+            c.classList.add('pop-in');
+          }
+        });
+      });
     }
-    
+
     function move(direction) {
       let moved = false;
       let newBoard = Array(SIZE).fill(null).map(() => Array(SIZE).fill(0));
-      
+      let merged = new Set();
+
       if (direction === 'up') {
         for (let x = 0; x < SIZE; x++) {
-          let col = board.map(row => row[x]).filter(n => n !== 0);
+          let col = [];
+          let colIdx = [];
+          for (let y = 0; y < SIZE; y++) {
+            if (board[y][x] !== 0) {
+              col.push(board[y][x]);
+              colIdx.push(y * SIZE + x);
+            }
+          }
           for (let i = 0; i < col.length - 1; i++) {
             if (col[i] === col[i + 1]) {
               col[i] *= 2;
@@ -373,36 +757,41 @@
                 won = true;
                 setTimeout(() => showWin(), 100);
               }
+              merged.add(i * SIZE + x);
               col.splice(i + 1, 1);
             }
           }
           for (let y = 0; y < SIZE; y++) {
-            if (newBoard[y][x] !== col[y]) {
-              moved = true;
+            if (newBoard[y][x] !== (col[y] || 0)) {
+              if ((col[y] || 0) !== board[y][x]) moved = true;
             }
             newBoard[y][x] = col[y] || 0;
           }
         }
       } else if (direction === 'down') {
         for (let x = 0; x < SIZE; x++) {
-          let col = board.map(row => row[x]).filter(n => n !== 0);
-          for (let i = col.length - 1; i > 0; i--) {
-            if (col[i] === col[i - 1]) {
+          let col = [];
+          for (let y = SIZE - 1; y >= 0; y--) {
+            if (board[y][x] !== 0) col.push(board[y][x]);
+          }
+          for (let i = 0; i < col.length - 1; i++) {
+            if (col[i] === col[i + 1]) {
               col[i] *= 2;
               score += col[i];
               if (col[i] === 2048 && !won) {
                 won = true;
                 setTimeout(() => showWin(), 100);
               }
-              col.splice(i - 1, 1);
+              merged.add((SIZE - 1 - i) * SIZE + x);
+              col.splice(i + 1, 1);
             }
           }
           while (col.length < SIZE) col.unshift(0);
           for (let y = 0; y < SIZE; y++) {
             if (newBoard[y][x] !== col[y]) {
-              moved = true;
+              if (col[y] !== board[y][x]) moved = true;
             }
-            newBoard[y][x] = col[y] || 0;
+            newBoard[y][x] = col[y];
           }
         }
       } else if (direction === 'left') {
@@ -416,12 +805,13 @@
                 won = true;
                 setTimeout(() => showWin(), 100);
               }
+              merged.add(y * SIZE + i);
               row.splice(i + 1, 1);
             }
           }
           for (let x = 0; x < SIZE; x++) {
-            if (newBoard[y][x] !== row[x]) {
-              moved = true;
+            if (newBoard[y][x] !== (row[x] || 0)) {
+              if ((row[x] || 0) !== board[y][x]) moved = true;
             }
             newBoard[y][x] = row[x] || 0;
           }
@@ -437,19 +827,20 @@
                 won = true;
                 setTimeout(() => showWin(), 100);
               }
+              merged.add(y * SIZE + (SIZE - 1 - (row.length - 1 - i)));
               row.splice(i - 1, 1);
             }
           }
           while (row.length < SIZE) row.unshift(0);
           for (let x = 0; x < SIZE; x++) {
             if (newBoard[y][x] !== row[x]) {
-              moved = true;
+              if (row[x] !== board[y][x]) moved = true;
             }
-            newBoard[y][x] = row[x] || 0;
+            newBoard[y][x] = row[x];
           }
         }
       }
-      
+
       if (moved) {
         board = newBoard;
         addRandomTile();
@@ -459,13 +850,13 @@
           localStorage.setItem('2048_best', best.toString());
           bestEl.textContent = best;
         }
-        render();
+        render(merged);
         if (!canMove()) {
           setTimeout(() => showGameOver(), 100);
         }
       }
     }
-    
+
     function canMove() {
       for (let y = 0; y < SIZE; y++) {
         for (let x = 0; x < SIZE; x++) {
@@ -476,17 +867,17 @@
       }
       return false;
     }
-    
+
     function showWin() {
       document.getElementById('win-score').textContent = score;
       document.getElementById('win-modal').classList.remove('hidden');
     }
-    
+
     function showGameOver() {
       document.getElementById('final-score').textContent = score;
       document.getElementById('game-over-modal').classList.remove('hidden');
     }
-    
+
     function newGame() {
       score = 0;
       won = false;
@@ -495,7 +886,7 @@
       document.getElementById('win-modal').classList.add('hidden');
       initBoard();
     }
-    
+
     document.getElementById('new-game').addEventListener('click', newGame);
     document.getElementById('restart-game').addEventListener('click', newGame);
     document.getElementById('continue-game').addEventListener('click', () => {
@@ -507,17 +898,51 @@
     document.getElementById('close-help').addEventListener('click', () => {
       document.getElementById('help-modal').classList.add('hidden');
     });
-    
+
     document.addEventListener('keydown', (e) => {
-      switch (e.key.toLowerCase()) {
-        case 'w': e.preventDefault(); move('up'); break;
-        case 's': e.preventDefault(); move('down'); break;
-        case 'a': e.preventDefault(); move('left'); break;
-        case 'd': e.preventDefault(); move('right'); break;
+      const key = e.key;
+      if (key === 'w' || key === 'W' || key === 'ArrowUp') {
+        e.preventDefault(); move('up');
+      } else if (key === 's' || key === 'S' || key === 'ArrowDown') {
+        e.preventDefault(); move('down');
+      } else if (key === 'a' || key === 'A' || key === 'ArrowLeft') {
+        e.preventDefault(); move('left');
+      } else if (key === 'd' || key === 'D' || key === 'ArrowRight') {
+        e.preventDefault(); move('right');
       }
     });
-    
+
+    // Touch swipe support for mobile
+    const boardWrapper = document.querySelector('.board-wrapper');
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    boardWrapper.addEventListener('touchstart', (e) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    boardWrapper.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+    }, { passive: false });
+
+    boardWrapper.addEventListener('touchend', (e) => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+
+      if (Math.max(absDx, absDy) < 30) return;
+
+      if (absDx > absDy) {
+        move(dx > 0 ? 'right' : 'left');
+      } else {
+        move(dy > 0 ? 'down' : 'up');
+      }
+    }, { passive: true });
+
     initBoard();
+    applyTheme('classic');
   </script>
 </body>
 </html>

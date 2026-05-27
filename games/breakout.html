@@ -6,35 +6,37 @@
   <title>🎯 Breakout</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      font-family: 'Courier New', monospace; 
-      background: #0a0a0a; 
+    body {
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #0a0a0a;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 20px;
+      padding: 30px 20px 20px;
       color: #fff;
     }
-    
+
     .game-container {
       position: relative;
       width: 100%;
       max-width: 400px;
+      touch-action: none;
     }
-    
+
     canvas {
       display: block;
       width: 100%;
       max-width: 400px;
-      height: 300px;
+      aspect-ratio: 4 / 3;
+      height: auto;
       background: #0a0a0a;
       border: 2px solid #ff6b6b;
       border-radius: 8px;
-      box-shadow: 0 0 20px rgba(255,107,107,0.3);
+      box-shadow: 0 0 30px rgba(255,107,107,0.3);
+      touch-action: none;
     }
-    
+
     .info-bar {
       display: flex;
       justify-content: space-between;
@@ -43,14 +45,14 @@
       background: rgba(255,255,255,0.05);
       border-radius: 8px;
     }
-    
+
     .score, .lives {
       font-size: 0.95rem;
       font-weight: 600;
       color: #ff6b6b;
       text-shadow: 0 0 10px rgba(255,107,107,0.5);
     }
-    
+
     .overlay {
       position: absolute;
       top: 40px;
@@ -64,16 +66,17 @@
       border-radius: 8px;
       cursor: pointer;
       z-index: 10;
+      touch-action: none;
     }
-    
+
     .overlay.hidden {
       display: none;
     }
-    
+
     .overlay-content {
       text-align: center;
     }
-    
+
     .title {
       font-size: 1.8rem;
       font-weight: 700;
@@ -83,67 +86,179 @@
       letter-spacing: 3px;
       text-shadow: 0 0 20px rgba(255,107,107,0.8);
     }
-    
+
     .subtitle {
       font-size: 0.95rem;
       color: #aaa;
       margin-bottom: 8px;
     }
-    
+
     .hint {
       font-size: 0.8rem;
       color: #666;
     }
-    
+
+    .tutorial-btn {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 6px 18px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 99px;
+      color: #ccc;
+      font-family: inherit;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .tutorial-btn:hover {
+      background: rgba(255,107,107,0.2);
+      border-color: #ff6b6b;
+      color: #fff;
+    }
+
+    .tutorial-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+
+    .tutorial-modal.active {
+      display: flex;
+    }
+
+    .tutorial-modal .modal-box {
+      background: rgba(20,20,20,0.95);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 32px 28px;
+      max-width: 400px;
+      width: 90%;
+      position: relative;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 0 40px rgba(255,107,107,0.15);
+    }
+
+    .tutorial-modal .modal-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #ff6b6b;
+      margin-bottom: 20px;
+      text-align: center;
+      letter-spacing: 2px;
+    }
+
+    .tutorial-modal .modal-body {
+      text-align: left;
+      color: #ccc;
+      font-size: 0.88rem;
+      line-height: 1.8;
+    }
+
+    .tutorial-modal .modal-body li {
+      list-style: none;
+      padding: 4px 0;
+    }
+
+    .tutorial-modal .modal-body li::before {
+      content: '▸ ';
+      color: #ff6b6b;
+    }
+
+    .tutorial-modal .modal-close {
+      display: block;
+      margin: 20px auto 0;
+      padding: 8px 32px;
+      background: rgba(255,107,107,0.2);
+      border: 1px solid #ff6b6b;
+      border-radius: 99px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .tutorial-modal .modal-close:hover {
+      background: rgba(255,107,107,0.4);
+    }
+
     .nav-links {
-      margin-top: 20px;
+      margin-top: 14px;
+      margin-bottom: 14px;
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
       justify-content: center;
     }
-    
+
     .nav-link {
-      padding: 8px 16px;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
+      padding: 6px 14px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
       border-radius: 99px;
-      color: #fff;
+      color: #ccc;
       text-decoration: none;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       transition: all 0.3s;
     }
-    
+
     .nav-link:hover {
       background: rgba(255,107,107,0.2);
       border-color: #ff6b6b;
+      color: #fff;
     }
-    
+
     .back-home {
       position: fixed;
-      top: 20px;
-      left: 20px;
-      padding: 8px 16px;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 99px;
-      color: #fff;
+      top: 18px;
+      left: 18px;
+      padding: 8px 18px;
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      color: rgba(255,255,255,0.8);
       text-decoration: none;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
       font-size: 0.85rem;
-      transition: all 0.3s;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      transition: all 0.3s ease;
+      z-index: 50;
     }
-    
+
     .back-home:hover {
-      background: rgba(184,148,92,0.3);
-      border-color: #b8945c;
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.3);
+      color: #fff;
+      box-shadow: 0 0 20px rgba(255,255,255,0.08);
+      transform: translateY(-1px);
     }
   </style>
 </head>
 <body>
-  <a href="../index.html" class="back-home">🏠 返回首页</a>
-  
-  <h1 style="margin-bottom: 20px; color: #ff6b6b; text-shadow: 0 0 20px rgba(255,107,107,0.5);">🎯 BREAKOUT</h1>
-  
+  <a href="../index.html" class="back-home">← 返回首页</a>
+
+  <h1 style="margin-bottom: 12px; color: #ff6b6b; text-shadow: 0 0 20px rgba(255,107,107,0.5); font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; font-weight: 700;">🎯 BREAKOUT</h1>
+
+  <div class="nav-links">
+    <a href="dino.html" class="nav-link">🦖 Dino</a>
+    <a href="tetris.html" class="nav-link">🧱 Tetris</a>
+    <a href="2048.html" class="nav-link">🔢 2048</a>
+  </div>
+
+  <p style="text-align:center;color:#666;font-size:0.75rem;margin-top:12px">💡 提示：游戏界面在移动端可能体验不佳，建议在 PC 上游玩</p>
+
   <div class="game-container">
     <div class="info-bar">
       <div class="score">分数: <span id="score">0</span></div>
@@ -153,16 +268,26 @@
     <div class="overlay" id="overlay">
       <div class="overlay-content">
         <div class="title">🎯 BREAKOUT</div>
-        <div class="subtitle">按 空格键 或 点击 开始</div>
-        <div class="hint">← → 移动挡板 · 击碎所有砖块</div>
+        <div class="subtitle">点击 / 触摸屏幕 开始游戏</div>
+        <div class="hint">← → 方向键 / 触摸拖动 · 击碎所有砖块</div>
+        <button class="tutorial-btn" id="tutorialBtn">📖 游戏教程</button>
       </div>
     </div>
   </div>
-  
-  <div class="nav-links">
-    <a href="dino.html" class="nav-link">🦖 Dino</a>
-    <a href="tetris.html" class="nav-link">🧱 Tetris</a>
-    <a href="2048.html" class="nav-link">🔢 2048</a>
+
+  <div class="tutorial-modal" id="tutorialModal">
+    <div class="modal-box">
+      <div class="modal-title">📖 游戏教程</div>
+      <div class="modal-body">
+        <li><b>目标</b>：击碎所有砖块即可过关</li>
+        <li><b>操作</b>：← → 方向键 / 触摸拖动 移动挡板</li>
+        <li><b>开始</b>：点击/触摸画面或按空格键开始</li>
+        <li><b>反弹</b>：球碰到挡板不同位置角度不同</li>
+        <li><b>生命</b>：共 3 条命，球掉落则失去一条</li>
+        <li><b>技巧</b>：用挡板边缘击球可改变球路</li>
+      </div>
+      <button class="modal-close" id="modalClose">知道了</button>
+    </div>
   </div>
 
   <script>
@@ -171,10 +296,13 @@
     const scoreEl = document.getElementById('score');
     const livesEl = document.getElementById('lives');
     const overlay = document.getElementById('overlay');
-    
-    canvas.width = 400;
-    canvas.height = 300;
-    
+
+    const CANVAS_WIDTH = 400;
+    const CANVAS_HEIGHT = 300;
+
+    canvas.width = CANVAS_WIDTH;
+    canvas.height = CANVAS_HEIGHT;
+
     const COLS = 10;
     const ROWS = 5;
     const BRICK_WIDTH = 35;
@@ -182,18 +310,18 @@
     const BRICK_PADDING = 5;
     const BRICK_OFFSET_TOP = 30;
     const BRICK_OFFSET_LEFT = 10;
-    
+
     const COLORS = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff'];
-    
+
     let score = 0;
     let lives = 3;
     let running = false;
-    
-    let ball = { x: 200, y: 250, dx: 4, dy: -4, radius: 6 };
+
+    let ball = { x: 200, y: 250, dx: 3, dy: -3, radius: 6 };
     let paddle = { x: 150, y: 280, width: 100, height: 10 };
     let bricks = [];
     let particles = [];
-    
+
     function initBricks() {
       bricks = [];
       for (let row = 0; row < ROWS; row++) {
@@ -209,101 +337,165 @@
         }
       }
     }
-    
+
     function drawBall() {
+      ctx.save();
+      const grad = ctx.createRadialGradient(ball.x, ball.y, 0, ball.x, ball.y, ball.radius * 3);
+      grad.addColorStop(0, 'rgba(255,255,255,0.3)');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius * 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.shadowColor = '#fff';
+      ctx.shadowBlur = 30;
       ctx.beginPath();
       ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
       ctx.fillStyle = '#fff';
-      ctx.shadowColor = '#fff';
-      ctx.shadowBlur = 20;
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.arc(ball.x - 2, ball.y - 2, ball.radius * 0.35, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawPaddle() {
+      ctx.save();
+      const grad = ctx.createLinearGradient(paddle.x, paddle.y, paddle.x, paddle.y + paddle.height);
+      grad.addColorStop(0, '#ff8e8e');
+      grad.addColorStop(0.5, '#ff6b6b');
+      grad.addColorStop(1, '#e05555');
+      ctx.fillStyle = grad;
+      ctx.shadowColor = '#ff6b6b';
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.roundRect(paddle.x, paddle.y, paddle.width, paddle.height, 4);
       ctx.fill();
       ctx.shadowBlur = 0;
+
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.beginPath();
+      ctx.roundRect(paddle.x + 4, paddle.y + 2, paddle.width - 8, 3, 2);
+      ctx.fill();
+      ctx.restore();
     }
-    
-    function drawPaddle() {
-      ctx.fillStyle = '#ff6b6b';
-      ctx.shadowColor = '#ff6b6b';
-      ctx.shadowBlur = 15;
-      ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
-      ctx.shadowBlur = 0;
-    }
-    
+
     function drawBricks() {
       for (let brick of bricks) {
         if (!brick.visible) continue;
-        ctx.fillStyle = brick.color;
-        ctx.shadowColor = brick.color;
-        ctx.shadowBlur = 15;
+        ctx.save();
+        const grad = ctx.createLinearGradient(brick.x, brick.y, brick.x, brick.y + brick.height);
+        const c = brick.color;
+        grad.addColorStop(0, lightenColor(c, 30));
+        grad.addColorStop(0.5, c);
+        grad.addColorStop(1, darkenColor(c, 20));
+        ctx.fillStyle = grad;
+        ctx.shadowColor = c;
+        ctx.shadowBlur = 12;
         ctx.fillRect(brick.x, brick.y, brick.width, brick.height);
         ctx.shadowBlur = 0;
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
-        ctx.fillRect(brick.x, brick.y, brick.width, 3);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.25)';
+        ctx.fillRect(brick.x + 3, brick.y + 2, brick.width - 6, 4);
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillRect(brick.x + 3, brick.y + 7, brick.width - 6, 2);
+        ctx.restore();
       }
     }
-    
+
+    function lightenColor(hex, amt) {
+      let r = parseInt(hex.slice(1,3), 16);
+      let g = parseInt(hex.slice(3,5), 16);
+      let b = parseInt(hex.slice(5,7), 16);
+      r = Math.min(255, r + amt);
+      g = Math.min(255, g + amt);
+      b = Math.min(255, b + amt);
+      return `rgb(${r},${g},${b})`;
+    }
+
+    function darkenColor(hex, amt) {
+      let r = parseInt(hex.slice(1,3), 16);
+      let g = parseInt(hex.slice(3,5), 16);
+      let b = parseInt(hex.slice(5,7), 16);
+      r = Math.max(0, r - amt);
+      g = Math.max(0, g - amt);
+      b = Math.max(0, b - amt);
+      return `rgb(${r},${g},${b})`;
+    }
+
     function drawParticles() {
       for (let p of particles) {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 3 * p.life, 0, Math.PI * 2);
-        ctx.fillStyle = p.color;
+        ctx.save();
         ctx.globalAlpha = p.life;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
         ctx.fill();
-        ctx.globalAlpha = 1;
+        ctx.restore();
       }
     }
-    
+
     function createParticles(x, y, color) {
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 14; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1 + Math.random() * 5;
         particles.push({
           x: x,
           y: y,
-          dx: (Math.random() - 0.5) * 6,
-          dy: (Math.random() - 0.5) * 6,
+          dx: Math.cos(angle) * speed,
+          dy: Math.sin(angle) * speed,
           color: color,
-          life: 1
+          life: 0.6 + Math.random() * 0.4,
+          size: 2 + Math.random() * 3
         });
       }
     }
-    
+
     function update() {
       if (!running) return;
-      
+
       ball.x += ball.dx;
       ball.y += ball.dy;
-      
-      if (ball.x - ball.radius <= 0 || ball.x + ball.radius >= 400) {
+
+      if (ball.x - ball.radius <= 0 || ball.x + ball.radius >= CANVAS_WIDTH) {
         ball.dx = -ball.dx;
       }
-      
+
       if (ball.y - ball.radius <= 0) {
         ball.dy = -ball.dy;
       }
-      
-      if (ball.y + ball.radius >= 300) {
+
+      if (ball.y + ball.radius >= CANVAS_HEIGHT) {
         lives--;
         livesEl.textContent = lives;
-        
+
         if (lives <= 0) {
           gameOver();
           return;
         }
-        
-        ball = { x: 200, y: 250, dx: 4, dy: -4, radius: 6 };
+
+        ball = { x: 200, y: 250, dx: 3, dy: -3, radius: 6 };
         paddle = { x: 150, y: 280, width: 100, height: 10 };
       }
-      
+
       if (ball.y + ball.radius >= paddle.y && ball.x >= paddle.x && ball.x <= paddle.x + paddle.width) {
         ball.dy = -Math.abs(ball.dy);
         const hitPos = (ball.x - paddle.x) / paddle.width;
-        ball.dx = (hitPos - 0.5) * 8;
+        ball.dx = (hitPos - 0.5) * 6;
       }
-      
+
       for (let brick of bricks) {
         if (!brick.visible) continue;
-        
+
         if (ball.x + ball.radius > brick.x && ball.x - ball.radius < brick.x + brick.width &&
             ball.y + ball.radius > brick.y && ball.y - ball.radius < brick.y + brick.height) {
-          
+
           brick.visible = false;
           score += 10;
           scoreEl.textContent = score;
@@ -312,55 +504,58 @@
           break;
         }
       }
-      
+
       particles = particles.filter(p => {
         p.x += p.dx;
         p.y += p.dy;
-        p.life -= 0.02;
+        p.dy += 0.05;
+        p.life -= 0.025;
         return p.life > 0;
       });
-      
+
       if (bricks.every(b => !b.visible)) {
         winGame();
       }
     }
-    
+
     function render() {
       ctx.fillStyle = '#0a0a0a';
-      ctx.fillRect(0, 0, 400, 300);
-      
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
       drawBricks();
       drawPaddle();
       drawBall();
       drawParticles();
     }
-    
+
     function gameLoop() {
       update();
       render();
       requestAnimationFrame(gameLoop);
     }
-    
+
     function startGame() {
       score = 0;
       lives = 3;
       scoreEl.textContent = '0';
       livesEl.textContent = '3';
       running = true;
-      ball = { x: 200, y: 250, dx: 4, dy: -4, radius: 6 };
+      ball = { x: 200, y: 250, dx: 3, dy: -3, radius: 6 };
       paddle = { x: 150, y: 280, width: 100, height: 10 };
       particles = [];
       initBricks();
       overlay.classList.add('hidden');
+      overlay.querySelector('.title').style.color = '#ff6b6b';
+      overlay.querySelector('.title').style.textShadow = '0 0 20px rgba(255,107,107,0.8)';
     }
-    
+
     function gameOver() {
       running = false;
       overlay.classList.remove('hidden');
       overlay.querySelector('.title').textContent = '💔 GAME OVER';
       overlay.querySelector('.subtitle').textContent = '得分: ' + score;
     }
-    
+
     function winGame() {
       running = false;
       overlay.classList.remove('hidden');
@@ -369,15 +564,16 @@
       overlay.querySelector('.title').style.color = '#4ecdc4';
       overlay.querySelector('.title').style.textShadow = '0 0 20px rgba(78,205,196,0.8)';
     }
-    
+
     canvas.addEventListener('click', () => {
       if (!running) startGame();
     });
-    
-    overlay.addEventListener('click', () => {
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target.closest('.tutorial-btn')) return;
       if (!running) startGame();
     });
-    
+
     document.addEventListener('keydown', (e) => {
       if (e.code === 'Space') {
         e.preventDefault();
@@ -396,13 +592,83 @@
         e.preventDefault();
         if (running) {
           paddle.x += 30;
-          if (paddle.x > 400 - paddle.width) {
-            paddle.x = 400 - paddle.width;
+          if (paddle.x > CANVAS_WIDTH - paddle.width) {
+            paddle.x = CANVAS_WIDTH - paddle.width;
           }
         }
       }
     });
-    
+
+    // --- 触摸事件（移动端支持） ---
+
+    function getTouchPos(canvas, touch) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (touch.clientX - rect.left) * (canvas.width / rect.width),
+        y: (touch.clientY - rect.top) * (canvas.height / rect.height)
+      };
+    }
+
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (!running) {
+        startGame();
+        return;
+      }
+      const pos = getTouchPos(canvas, e.touches[0]);
+      paddle.x = pos.x - paddle.width / 2;
+      if (paddle.x < 0) paddle.x = 0;
+      if (paddle.x > CANVAS_WIDTH - paddle.width) paddle.x = CANVAS_WIDTH - paddle.width;
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (!running) return;
+      const pos = getTouchPos(canvas, e.touches[0]);
+      paddle.x = pos.x - paddle.width / 2;
+      if (paddle.x < 0) paddle.x = 0;
+      if (paddle.x > CANVAS_WIDTH - paddle.width) paddle.x = CANVAS_WIDTH - paddle.width;
+    });
+
+    overlay.addEventListener('touchstart', (e) => {
+      if (e.target.closest('.tutorial-btn')) return;
+      e.preventDefault();
+      if (!running) startGame();
+    });
+
+    document.getElementById('tutorialBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('tutorialModal').classList.add('active');
+    });
+
+    document.getElementById('tutorialBtn').addEventListener('touchstart', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      document.getElementById('tutorialModal').classList.add('active');
+    });
+
+    document.getElementById('modalClose').addEventListener('click', () => {
+      document.getElementById('tutorialModal').classList.remove('active');
+    });
+
+    document.getElementById('modalClose').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      document.getElementById('tutorialModal').classList.remove('active');
+    });
+
+    document.getElementById('tutorialModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        document.getElementById('tutorialModal').classList.remove('active');
+      }
+    });
+
+    document.getElementById('tutorialModal').addEventListener('touchstart', (e) => {
+      if (e.target === e.currentTarget) {
+        e.preventDefault();
+        document.getElementById('tutorialModal').classList.remove('active');
+      }
+    });
+
     initBricks();
     gameLoop();
   </script>

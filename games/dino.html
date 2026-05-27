@@ -7,35 +7,31 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
-      font-family: 'Courier New', monospace; 
-      background: #000; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #0a0a1a; 
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 20px;
+      justify-content: flex-start;
+      padding: 30px 20px;
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
     
     .game-container {
       position: relative;
       width: 100%;
       max-width: 500px;
+      margin-top: 20px;
     }
     
-    canvas {
-      display: block;
-      width: 100%;
-      max-width: 500px;
-      height: 200px;
-      background: #000;
-      border: 2px solid #333;
-      border-radius: 8px;
-    }
-    
-    .score-bar {
+    .game-header {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       padding: 10px 15px;
       margin-bottom: 10px;
       background: rgba(255,255,255,0.05);
@@ -43,24 +39,64 @@
     }
     
     .score, .highscore {
+      color: #e0e0e0;
+      font-size: 0.95rem;
+      font-weight: 600;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+    
+    .nav-link {
+      padding: 6px 14px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 99px;
+      color: #ccc;
+      text-decoration: none;
+      font-size: 0.8rem;
+      transition: all 0.3s;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    }
+    
+    .nav-link:hover {
+      background: rgba(255,107,107,0.25);
+      border-color: #ff6b6b;
       color: #fff;
-      font-size: 1rem;
-      font-weight: 700;
+      box-shadow: 0 0 12px rgba(255,107,107,0.2);
+    }
+    
+    canvas {
+      display: block;
+      width: 100%;
+      max-width: 500px;
+      height: auto;
+      aspect-ratio: 500 / 200;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      touch-action: none;
     }
     
     .overlay {
       position: absolute;
-      top: 40px;
+      top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0,0,0,0.9);
+      background: rgba(10,10,26,0.92);
       display: flex;
       align-items: center;
       justify-content: center;
       border-radius: 8px;
       cursor: pointer;
       z-index: 10;
+      touch-action: none;
     }
     
     .overlay.hidden {
@@ -78,6 +114,7 @@
       margin-bottom: 12px;
       text-transform: uppercase;
       letter-spacing: 3px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     }
     
     .subtitle {
@@ -89,74 +126,193 @@
     .hint {
       font-size: 0.8rem;
       color: #666;
+      margin-bottom: 16px;
     }
     
-    .nav-links {
-      margin-top: 20px;
+    .overlay-buttons {
       display: flex;
       gap: 10px;
-      flex-wrap: wrap;
       justify-content: center;
+      flex-wrap: wrap;
     }
     
-    .nav-link {
-      padding: 8px 16px;
+    .overlay-btn {
+      padding: 8px 20px;
       background: rgba(255,255,255,0.1);
       border: 1px solid rgba(255,255,255,0.2);
       border-radius: 99px;
       color: #fff;
-      text-decoration: none;
       font-size: 0.85rem;
+      cursor: pointer;
       transition: all 0.3s;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     }
     
-    .nav-link:hover {
-      background: rgba(255,107,107,0.3);
-      border-color: #ff6b6b;
+    .overlay-btn:hover {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.4);
+      box-shadow: 0 0 14px rgba(255,255,255,0.15);
     }
     
     .back-home {
       position: fixed;
       top: 20px;
       left: 20px;
-      padding: 8px 16px;
+      padding: 10px 18px;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      color: #e0e0e0;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.3s;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      z-index: 100;
+    }
+    
+    .back-home:hover {
+      background: rgba(255,255,255,0.15);
+      border-color: rgba(255,255,255,0.35);
+      box-shadow: 0 0 20px rgba(255,255,255,0.1), 0 4px 15px rgba(0,0,0,0.3);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+    
+    .tutorial-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .tutorial-modal.active {
+      display: flex;
+    }
+    
+    .tutorial-content {
+      background: rgba(30,30,60,0.95);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 16px;
+      padding: 30px 32px;
+      max-width: 400px;
+      width: 90%;
+      color: #e0e0e0;
+      position: relative;
+    }
+    
+    .tutorial-content h2 {
+      font-size: 1.3rem;
+      margin-bottom: 20px;
+      text-align: center;
+      font-weight: 600;
+    }
+    
+    .tutorial-content ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .tutorial-content li {
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    
+    .tutorial-content li:last-child {
+      border-bottom: none;
+    }
+    
+    .tutorial-content .key {
+      display: inline-block;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 4px;
+      padding: 1px 8px;
+      font-size: 0.8rem;
+      font-family: 'Courier New', monospace;
+      color: #fff;
+    }
+    
+    .tutorial-close {
+      display: block;
+      margin: 18px auto 0;
+      padding: 10px 28px;
       background: rgba(255,255,255,0.1);
       border: 1px solid rgba(255,255,255,0.2);
       border-radius: 99px;
       color: #fff;
-      text-decoration: none;
       font-size: 0.85rem;
+      cursor: pointer;
       transition: all 0.3s;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     }
     
-    .back-home:hover {
-      background: rgba(184,148,92,0.3);
-      border-color: #b8945c;
+    .tutorial-close:hover {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.4);
     }
   </style>
 </head>
 <body>
-  <a href="../index.html" class="back-home">🏠 返回首页</a>
+  <a href="../index.html" class="back-home">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+      <path d="M19 12H5M12 19l-7-7 7-7"/>
+    </svg>
+    返回首页
+  </a>
   
   <div class="game-container">
-    <div class="score-bar">
-      <div class="highscore">📊 <span id="highscore">0</span></div>
-      <div class="score">🏆 <span id="score">0</span></div>
+    <div class="game-header">
+      <div class="highscore">🏆 <span id="highscore">0</span></div>
+      <div class="score">📊 <span id="score">0</span></div>
     </div>
+    
+    <div class="nav-links">
+      <a href="tetris.html" class="nav-link">🧱 Tetris</a>
+      <a href="breakout.html" class="nav-link">🎯 Breakout</a>
+      <a href="2048.html" class="nav-link">🔢 2048</a>
+    </div>
+    <p style="text-align:center;color:#666;font-size:0.75rem;margin-top:12px">💡 提示：游戏界面在移动端可能体验不佳，建议在 PC 上游玩</p>
+    
     <canvas id="canvas"></canvas>
     <div class="overlay" id="overlay">
       <div class="overlay-content">
         <div class="title">🦖 DINO GAME</div>
-        <div class="subtitle">按 空格键 或 点击 开始</div>
-        <div class="hint">空格跳跃 · 躲避障碍物</div>
+        <div class="subtitle">按 空格键 或 轻触画面 开始</div>
+        <div class="hint">空格/触摸跳跃 · 躲避障碍物</div>
+        <div class="overlay-buttons">
+          <button class="overlay-btn" id="tutorialBtn">📖 教程</button>
+        </div>
       </div>
     </div>
   </div>
-  
-  <div class="nav-links">
-    <a href="tetris.html" class="nav-link">🧱 Tetris</a>
-    <a href="breakout.html" class="nav-link">🎯 Breakout</a>
-    <a href="2048.html" class="nav-link">🔢 2048</a>
+
+  <div class="tutorial-modal" id="tutorialModal">
+    <div class="tutorial-content">
+      <h2>🎮 游戏操作说明</h2>
+      <ul>
+        <li>▶ 按下 <span class="key">空格</span> 或 <strong>触摸画面</strong> 让恐龙跳跃</li>
+        <li>▶ 躲避道路上出现的 <strong>仙人掌</strong> 和 <strong>飞鸟</strong></li>
+        <li>▶ 每获得 <strong>500 分</strong>，游戏速度会小幅提升</li>
+        <li>▶ 点击/触摸画面重新开始游戏</li>
+        <li>▶ 最高分会自动保存在浏览器中</li>
+      </ul>
+      <button class="tutorial-close" id="tutorialClose">知道了</button>
+    </div>
   </div>
 
   <script>
@@ -165,6 +321,9 @@
     const scoreEl = document.getElementById('score');
     const highscoreEl = document.getElementById('highscore');
     const overlay = document.getElementById('overlay');
+    const tutorialBtn = document.getElementById('tutorialBtn');
+    const tutorialModal = document.getElementById('tutorialModal');
+    const tutorialClose = document.getElementById('tutorialClose');
     
     canvas.width = 500;
     canvas.height = 200;
@@ -174,7 +333,7 @@
     highscoreEl.textContent = highscore;
     
     let running = false;
-    let dino = { x: 50, y: 130, width: 40, height: 50, vy: 0, onGround: true };
+    let dino = { x: 50, y: 130, width: 48, height: 56, vy: 0, onGround: true };
     let obstacles = [];
     let clouds = [];
     let obstacleSpeed = 4;
@@ -182,40 +341,131 @@
     let lastObstacle = 0;
     const groundY = 180;
     
-    function drawDino() {
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(dino.x, dino.y + 10, 20, 8);
-      ctx.fillRect(dino.x + 5, dino.y, 10, 15);
-      ctx.fillRect(dino.x + 20, dino.y + 5, 25, 35);
-      ctx.fillRect(dino.x + 25, dino.y + 40, 8, 10);
-      ctx.fillRect(dino.x + 35, dino.y + 40, 8, 10);
-      ctx.fillRect(dino.x + 35, dino.y + 15, 8, 15);
-      ctx.fillRect(dino.x + 35, dino.y + 10, 5, 5);
-      ctx.fillStyle = '#000';
-      ctx.fillRect(dino.x + 37, dino.y + 12, 2, 2);
-      ctx.fillStyle = '#fff';
+    const PIXEL = 4;
+    
+    function drawDinoPixel(x, y) {
+      const p = PIXEL;
+      const px = x + 4;
+      const py = y + 2;
+      ctx.fillStyle = '#e8e8e8';
+      
+      const pattern = [
+        '...xxxx...........',
+        '..xxxxxx.........',
+        '.xxxxxxxx........',
+        '.xxxxxxxxx.......',
+        '.xxxxxxxxxx......',
+        '..xxxxxxxxxxxx...',
+        '..xxxxxxxxxxxx...',
+        '..xxxxxxxxxxxxx..',
+        '.xxxxxxxxxxxxxx..',
+        '.xxxxxxxxxxxxxxx.',
+        '.xxxxxxxxxxxxxxx.',
+        '.xxxxxxxxxxxxxxx.',
+        '.xxxxxxxxxxxxx...',
+        '.xxx....xxxx.....',
+        '.xxx.....xxx.....',
+        '..x......xxx.....',
+        '..x......xxx.....',
+        '..x......xxx.....',
+        '..x......xxx.....',
+        '..xx....xxx......',
+        '...xxxxxxxx......',
+        '...xxx..xxx......',
+        '...xx....xx......',
+        '...xx....xx......',
+      ];
+      
+      for (let row = 0; row < pattern.length; row++) {
+        for (let col = 0; col < pattern[row].length; col++) {
+          if (pattern[row][col] === 'x') {
+            ctx.fillRect(px + col * p, py + row * p, p, p);
+          }
+        }
+      }
+      
+      ctx.fillStyle = '#1a1a2e';
+      const eyeRow = 6;
+      const eyeCol = 9;
+      ctx.fillRect(px + eyeCol * p + p, py + eyeRow * p, p, p);
+      
+      ctx.fillStyle = '#e8e8e8';
     }
     
     function drawCactus(x, y) {
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(x + 5, y + 20, 8, 20);
-      ctx.fillRect(x, y + 10, 8, 15);
-      ctx.fillRect(x + 12, y + 5, 8, 15);
-      ctx.fillRect(x + 6, y, 6, 12);
+      const p = PIXEL;
+      ctx.fillStyle = '#7ecf7e';
+      
+      const pattern = [
+        '...xxx......',
+        '..xxxxx.....',
+        '..x.x.x.....',
+        '..x.x.x..x..',
+        '.xxx.x.xxx..',
+        '.xxx.x.xxx..',
+        '.xxxxxxxxx..',
+        '.xxxxxxxxx..',
+        '.xxxxxxxxx..',
+        '.xxxxxxxxx..',
+        '.xxxx.xxxx..',
+        '.xxxx.xxxx..',
+        '.xxxx.xxxx..',
+        '.xxxx.xxxx..',
+        '..xxx..xxx..',
+        '..xxx..xxx..',
+        '..xxx..xxx..',
+        '..xxx..xxx..',
+        '...x....x...',
+      ];
+      
+      for (let row = 0; row < pattern.length; row++) {
+        for (let col = 0; col < pattern[row].length; col++) {
+          if (pattern[row][col] === 'x') {
+            ctx.fillRect(x + col * p, y + row * p, p, p);
+          }
+        }
+      }
+      
+      ctx.fillStyle = '#e8e8e8';
     }
     
     function drawBird(x, y) {
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(x, y + 5, 25, 15);
-      ctx.fillRect(x + 20, y + 8, 15, 7);
-      ctx.fillRect(x - 5, y + 3, 8, 6);
-      ctx.fillStyle = '#000';
-      ctx.fillRect(x + 5, y + 8, 2, 2);
-      ctx.fillStyle = '#fff';
+      const p = PIXEL;
+      ctx.fillStyle = '#e8e8e8';
+      
+      const pattern = [
+        '....x....x......',
+        '....x....x......',
+        '....x....x......',
+        '...xxxxxxx......',
+        '..xxxxxxxxx.....',
+        '.xxxxxxxxxxxx...',
+        'xxxxxxxxxxxxxxx.',
+        'xxxxxxxxxxxxxxx.',
+        '.xxxxxxxxxxxx...',
+        '..xxxxxxxxx.....',
+        '...xxxxxxx......',
+        '....x....x......',
+        '....x....x......',
+        '....x....x......',
+      ];
+      
+      for (let row = 0; row < pattern.length; row++) {
+        for (let col = 0; col < pattern[row].length; col++) {
+          if (pattern[row][col] === 'x') {
+            ctx.fillRect(x + col * p, y + row * p, p, p);
+          }
+        }
+      }
+      
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(x + 8 * p + p, y + 6 * p, p, p);
+      
+      ctx.fillStyle = '#e8e8e8';
     }
     
     function drawCloud(x, y, size) {
-      ctx.fillStyle = '#666';
+      ctx.fillStyle = 'rgba(200,200,220,0.3)';
       ctx.beginPath();
       ctx.arc(x, y, size * 0.3, 0, Math.PI * 2);
       ctx.arc(x + size * 0.25, y - size * 0.1, size * 0.25, 0, Math.PI * 2);
@@ -229,16 +479,16 @@
       obstacles.push({
         x: 500,
         type: type,
-        width: type === 'cactus' ? 25 : 35,
-        height: type === 'cactus' ? 40 : 25,
-        y: type === 'cactus' ? groundY - 40 : groundY - 100 - Math.random() * 30
+        width: type === 'cactus' ? 52 : 64,
+        height: type === 'cactus' ? 72 : 56,
+        y: type === 'cactus' ? groundY - 72 : groundY - 110 - Math.random() * 30
       });
     }
     
     function checkCollision() {
-      const dr = { x: dino.x + 5, y: dino.y + 5, width: dino.width - 10, height: dino.height - 5 };
+      const dr = { x: dino.x + 6, y: dino.y + 6, width: dino.width - 14, height: dino.height - 10 };
       for (const obs of obstacles) {
-        const or = { x: obs.x + 5, y: obs.y + 5, width: obs.width - 10, height: obs.height - 5 };
+        const or = { x: obs.x + 6, y: obs.y + 6, width: obs.width - 12, height: obs.height - 10 };
         if (dr.x < or.x + or.width && dr.x + dr.width > or.x && dr.y < or.y + or.height && dr.y + dr.height > or.y) {
           return true;
         }
@@ -285,7 +535,7 @@
       }
       
       obstacles.forEach(obs => obs.x -= obstacleSpeed);
-      obstacles = obstacles.filter(obs => obs.x > -50);
+      obstacles = obstacles.filter(obs => obs.x > -80);
       
       if (now % 3000 < 100) {
         clouds.push({ x: 500, y: Math.random() * 60 + 20, size: Math.random() * 20 + 30 });
@@ -299,19 +549,60 @@
       }
     }
     
+    const groundDetails = [];
+    for (let i = 0; i < 500; i += 6) {
+      groundDetails.push({
+        x: i,
+        h: ((i * 7 + 3) % 4) + 1,
+        a: ((i * 13 + 7) % 100) * 0.0006 + 0.02
+      });
+    }
+
+    const groundStones = [];
+    for (let i = 0; i < 500; i += 20) {
+      groundStones.push({ x1: i, x2: i + 10 });
+    }
+
     function render() {
-      ctx.fillStyle = '#000';
+      const grad = ctx.createLinearGradient(0, 0, 0, 200);
+      grad.addColorStop(0, '#0f0f2e');
+      grad.addColorStop(0.5, '#0a0a1e');
+      grad.addColorStop(1, '#050510');
+      ctx.fillStyle = grad;
       ctx.fillRect(0, 0, 500, 200);
       
-      ctx.fillStyle = '#333';
+      ctx.fillStyle = '#1a1a30';
       ctx.fillRect(0, groundY, 500, 20);
       
-      ctx.fillStyle = '#fff';
+      groundDetails.forEach(({ x, h, a }) => {
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.fillRect(x, groundY + 20 - h, 2, h);
+      });
+      
+      groundStones.forEach(({ x1, x2 }) => {
+        ctx.fillStyle = '#222244';
+        ctx.fillRect(x1, groundY + 18, 4, 2);
+        ctx.fillRect(x2, groundY + 15, 2, 2);
+      });
+      
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
       ctx.fillRect(0, groundY + 20, 500, 2);
+      
+      const stars = [
+        [50, 15, 1], [120, 8, 0.8], [200, 25, 1.2], [310, 12, 0.7], 
+        [400, 20, 1], [80, 35, 0.6], [260, 18, 0.9], [350, 30, 0.7],
+        [440, 10, 0.5], [170, 40, 0.8]
+      ];
+      
+      const starGlow = Math.sin(Date.now() * 0.001) * 0.15 + 0.35;
+      stars.forEach(([sx, sy, sz]) => {
+        ctx.fillStyle = `rgba(255,255,255,${starGlow})`;
+        ctx.fillRect(sx, sy, sz, sz);
+      });
       
       clouds.forEach(cloud => drawCloud(cloud.x, cloud.y, cloud.size));
       
-      drawDino();
+      drawDinoPixel(dino.x, dino.y);
       
       obstacles.forEach(obs => {
         if (obs.type === 'cactus') drawCactus(obs.x, obs.y);
@@ -329,7 +620,7 @@
       score = 0;
       scoreEl.textContent = '0';
       running = true;
-      dino = { x: 50, y: 130, width: 40, height: 50, vy: 0, onGround: true };
+      dino = { x: 50, y: 130, width: 48, height: 56, vy: 0, onGround: true };
       obstacles = [];
       clouds = [];
       obstacleSpeed = 4;
@@ -337,18 +628,30 @@
       overlay.classList.add('hidden');
     }
     
-    canvas.addEventListener('click', () => {
+    function handleJump() {
       if (!running) {
         start();
       } else if (dino.onGround) {
         dino.vy = -12;
         dino.onGround = false;
       }
-    });
+    }
     
-    overlay.addEventListener('click', () => {
+    canvas.addEventListener('click', handleJump);
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      handleJump();
+    }, { passive: false });
+    
+    overlay.addEventListener('click', (e) => {
+      if (e.target.closest('.overlay-btn')) return;
       if (!running) start();
     });
+    overlay.addEventListener('touchstart', (e) => {
+      if (e.target.closest('.overlay-btn')) return;
+      e.preventDefault();
+      if (!running) start();
+    }, { passive: false });
     
     document.addEventListener('keydown', (e) => {
       if (e.code === 'Space') {
@@ -361,6 +664,36 @@
         }
       }
     });
+    
+    tutorialBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      tutorialModal.classList.add('active');
+    });
+    tutorialBtn.addEventListener('touchstart', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      tutorialModal.classList.add('active');
+    }, { passive: false });
+    
+    tutorialClose.addEventListener('click', () => {
+      tutorialModal.classList.remove('active');
+    });
+    tutorialClose.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      tutorialModal.classList.remove('active');
+    }, { passive: false });
+    
+    tutorialModal.addEventListener('click', (e) => {
+      if (e.target === tutorialModal) {
+        tutorialModal.classList.remove('active');
+      }
+    });
+    tutorialModal.addEventListener('touchstart', (e) => {
+      if (e.target === tutorialModal) {
+        e.preventDefault();
+        tutorialModal.classList.remove('active');
+      }
+    }, { passive: false });
     
     gameLoop();
   </script>
