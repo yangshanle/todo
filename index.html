@@ -8,9 +8,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Inter:wght@300;400;500;600&family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&family=LXGW+WenKai:wght@300;400;500;700&display=swap" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Inter:wght@300;400;500;600&family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&family=LXGW+WenKai:wght@300;400;500;700&display=swap"></noscript>
-  <link rel="stylesheet" href="src/css/washi.css?v=25">
+  <link rel="stylesheet" href="src/css/washi.css?v=30">
 </head>
 <body>
+
+  <!-- Scroll Progress Bar -->
+  <div class="scroll-progress" id="scrollProgress"></div>
 
   <!-- 3D Decorations Layer -->
   <div class="decorations-layer">
@@ -91,11 +94,13 @@
     <div class="nav-inner">
       <span class="logo">✦ folio</span>
       <div class="tabs" id="tabs">
+        <div class="tab-indicator" id="tabIndicator"></div>
         <button class="tab active" data-page="home">🏠 Home</button>
         <button class="tab" data-page="works">💼 Works</button>
         <button class="tab" data-page="articles">📝 Articles</button>
         <button class="tab" data-page="about">👤 About</button>
         <button class="tab" data-page="gallery">🖼 Gallery</button>
+        <button class="tab" data-page="game2048">🔢 2048</button>
       </div>
       <div class="nav-r">
         <button id="editBtn" title="编辑模式">✎</button>
@@ -124,7 +129,7 @@
         <button class="mobile-tab" data-page="about">👤 About</button>
         <button class="mobile-tab" data-page="gallery">🖼 Gallery</button>
         <button class="mobile-tab" data-page="calendar">📅 日历待办</button>
-        <a href="games/dino.html" class="mobile-tab">🎮 游戏中心</a>
+        <button class="mobile-tab" data-page="game2048">🔢 2048</button>
       </div>
       <div class="mobile-menu-extras">
         <button class="mobile-extra-btn" id="mobileEditBtn">✎ 编辑模式</button>
@@ -321,145 +326,7 @@
       </div>
     </div>
 
-    <!-- GAME DINO -->
-    <div class="page" id="page-dino">
-      <div class="page-inner">
-        <div class="p-deco"></div>
-        <div class="game-header">
-          <h2 class="pg-title">🦖 Dino Game</h2>
-          <p class="pg-sub">经典恐龙跑酷游戏</p>
-        </div>
-        <div class="game-nav">
-          <button class="game-nav-btn" data-page="tetris">🧱 Tetris</button>
-          <button class="game-nav-btn" data-page="breakout">🎯 Breakout</button>
-          <button class="game-nav-btn" data-page="game2048">🔢 2048</button>
-        </div>
-        <div class="dino-container">
-          <canvas id="dinoCanvas"></canvas>
-          <div class="dino-score">🏆 <span id="dinoScore">0</span></div>
-          <div class="dino-highscore">📊 <span id="dinoHighscore">0</span></div>
-          <button class="dino-help" id="dinoHelp">❓ 教程</button>
-          <div class="dino-overlay" id="dinoOverlay">
-            <div class="dino-overlay-content">
-              <div class="dino-title">🦖 DINO GAME</div>
-              <div class="dino-subtitle">按 空格键 或 点击 开始</div>
-              <div class="dino-hint">空格跳跃 · 躲避障碍物</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
     
-    <!-- GAME TETRIS -->
-    <div class="page" id="page-tetris">
-      <div class="page-inner">
-        <div class="p-deco"></div>
-        <div class="game-header">
-          <h2 class="pg-title">🧱 Tetris</h2>
-          <p class="pg-sub">经典俄罗斯方块</p>
-        </div>
-        <div class="game-nav">
-          <button class="game-nav-btn" data-page="dino">🦖 Dino</button>
-          <button class="game-nav-btn" data-page="breakout">🎯 Breakout</button>
-          <button class="game-nav-btn" data-page="game2048">🔢 2048</button>
-        </div>
-        <div class="tetris-container">
-          <div class="tetris-left">
-            <canvas id="tetrisCanvas"></canvas>
-          </div>
-          <div class="tetris-right">
-            <div class="tetris-info">
-              <div class="tetris-score">分数: <span id="tetrisScore">0</span></div>
-              <div class="tetris-level">等级: <span id="tetrisLevel">1</span></div>
-              <div class="tetris-lines">消除: <span id="tetrisLines">0</span></div>
-            </div>
-            <canvas id="tetrisNext"></canvas>
-            <button class="tetris-btn" id="tetrisStart">开始游戏</button>
-            <button class="tetris-btn tetris-btn-secondary" id="tetrisPause">暂停</button>
-            <button class="tetris-btn tetris-btn-secondary" id="tetrisHelp">❓ 教程</button>
-          </div>
-        </div>
-        <div class="tetris-controls">
-          <p>⬆️ 旋转 · ⬇️ 加速 · ⬅️➡️ 移动 · 空格 直接落下</p>
-        </div>
-      </div>
-    </div>
-    
-    <!-- GAME BREAKOUT -->
-    <div class="page" id="page-breakout">
-      <div class="page-inner">
-        <div class="p-deco"></div>
-        <div class="game-header">
-          <h2 class="pg-title">🎯 Breakout</h2>
-          <p class="pg-sub">经典打砖块游戏</p>
-        </div>
-        <div class="game-nav">
-          <button class="game-nav-btn" data-page="dino">🦖 Dino</button>
-          <button class="game-nav-btn" data-page="tetris">🧱 Tetris</button>
-          <button class="game-nav-btn" data-page="game2048">🔢 2048</button>
-        </div>
-        <div class="breakout-container">
-          <canvas id="breakoutCanvas"></canvas>
-          <button class="breakout-help" id="breakoutHelp">❓ 教程</button>
-          <div class="breakout-info">
-            <div class="breakout-score">分数: <span id="breakoutScore">0</span></div>
-            <div class="breakout-lives">生命: <span id="breakoutLives">3</span></div>
-          </div>
-          <div class="breakout-overlay" id="breakoutOverlay">
-            <div class="breakout-overlay-content">
-              <div class="breakout-title">🎯 BREAKOUT</div>
-              <div class="breakout-subtitle">按 空格键 或 点击 开始</div>
-              <div class="breakout-hint">← → 移动挡板 · 击碎所有砖块</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- GAME 2048 -->
-    <div class="page" id="page-game2048">
-      <div class="page-inner">
-        <div class="p-deco"></div>
-        <div class="game-header">
-          <h2 class="pg-title">🔢 2048</h2>
-          <p class="pg-sub">经典数字合并游戏</p>
-        </div>
-        <div class="game-nav">
-          <button class="game-nav-btn" data-page="dino">🦖 Dino</button>
-          <button class="game-nav-btn" data-page="tetris">🧱 Tetris</button>
-          <button class="game-nav-btn" data-page="breakout">🎯 Breakout</button>
-        </div>
-        <div class="theme-picker" id="themePicker">
-          <h4 class="theme-picker-title">🎨 选择主题</h4>
-          <div class="theme-colors">
-            <button class="theme-btn" data-theme="classic" title="经典"><span style="background:#eee"></span><span style="background:#edc22e"></span><span style="background:#edc22e"></span><span style="background:#eee"></span></button>
-            <button class="theme-btn" data-theme="tech" title="科技"><span style="background:#1a1a2e"></span><span style="background:#16213e"></span><span style="background:#0f3460"></span><span style="background:#533483"></span></button>
-            <button class="theme-btn" data-theme="ocean" title="海洋"><span style="background:#0077b6"></span><span style="background:#00b4d8"></span><span style="background:#90e0ef"></span><span style="background:#caf0f8"></span></button>
-            <button class="theme-btn" data-theme="forest" title="森林"><span style="background:#2d6a4f"></span><span style="background:#40916c"></span><span style="background:#52b788"></span><span style="background:#95d5b2"></span></button>
-            <button class="theme-btn" data-theme="sunset" title="日落"><span style="background:#7209b7"></span><span style="background:#f72585"></span><span style="background:#ff006e"></span><span style="background:#4361ee"></span></button>
-          </div>
-        </div>
-        <div class="game-container">
-          <div class="game-info">
-            <div class="game-score">
-              <div class="score-label">分数</div>
-              <div class="score-value" id="gameScore">0</div>
-            </div>
-            <div class="game-best">
-              <div class="score-label">最高分</div>
-              <div class="score-value" id="gameBest">0</div>
-            </div>
-          </div>
-          <button class="game-btn" id="newGameBtn">新游戏</button>
-          <button class="game-btn game-btn-secondary" id="gameHelp">帮助</button>
-          <div class="game-board" id="gameBoard"></div>
-          <div class="game-tips">
-            <p>W A S D 键控制移动</p>
-            <p>🎯 合并相同数字，达到 2048！</p>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- CALENDAR -->
     <div class="page" id="page-calendar">
@@ -520,6 +387,44 @@
         </div>
       </div>
     </div>
+
+  <!-- GAME 2048 -->
+  <div class="page" id="page-game2048">
+    <div class="page-inner game2048-wrap">
+      <div class="game2048-container">
+        <div class="game2048-header">
+          <div class="game2048-scores">
+            <div class="game2048-score-box">
+              <div class="game2048-score-label">分数</div>
+              <div class="game2048-score-num" id="g2048-score">0</div>
+            </div>
+            <div class="game2048-score-box">
+              <div class="game2048-score-label">🏆 最高</div>
+              <div class="game2048-score-num game2048-best-num" id="g2048-best">0</div>
+            </div>
+          </div>
+          <div class="game2048-actions">
+            <div class="game2048-timer">⏱ <span id="g2048-timer">00:00</span></div>
+            <div class="g2048-theme-wrap">
+              <button class="btn ripple g2048-theme-btn" id="g2048-themeBtn" title="主题颜色">🎨</button>
+              <div class="g2048-theme-dropdown" id="g2048-themeDropdown">
+                <div class="g2048-theme-option active" data-theme="default"><span class="g2048-theme-swatch" style="background:linear-gradient(135deg,#faf8f5,#f0ebe3)"></span>原版</div>
+                <div class="g2048-theme-option" data-theme="dark"><span class="g2048-theme-swatch" style="background:linear-gradient(135deg,#1a1a2e,#16213e)"></span>深色</div>
+                <div class="g2048-theme-option" data-theme="forest"><span class="g2048-theme-swatch" style="background:linear-gradient(135deg,#e8f0e8,#d0e4d0)"></span>森林</div>
+                <div class="g2048-theme-option" data-theme="ocean"><span class="g2048-theme-swatch" style="background:linear-gradient(135deg,#e8f0f8,#d0e4f4)"></span>海洋</div>
+                <div class="g2048-theme-option" data-theme="rose"><span class="g2048-theme-swatch" style="background:linear-gradient(135deg,#f8ecec,#f0e0e4)"></span>玫瑰</div>
+              </div>
+            </div>
+            <button class="btn ripple" id="g2048-newBtn">新游戏</button>
+            <button class="btn ripple g2048-end-btn" id="g2048-endBtn">✕ 结束</button>
+          </div>
+        </div>
+        <div class="game2048-board" id="g2048-board"></div>
+        <div class="game2048-tip">← ↑ → ↓ 或 WASD · 手机上直接滑动</div>
+        <div class="game2048-best" id="g2048-best"></div>
+      </div>
+    </div>
+  </div>
 
   </div>
 
@@ -584,6 +489,6 @@
     <div class="gv-counter" id="gvCounter"></div>
   </div>
 
-  <script src="src/js/app.js?v=14"></script>
+  <script src="src/js/app.js?v=20"></script>
 </body>
 </html>

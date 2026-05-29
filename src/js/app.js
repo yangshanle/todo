@@ -24,9 +24,24 @@ const App = {
   _ossAk: '',
   _ossSk: '',
   _ossBusy: false,
+  _animating: false,
   _ossLastSync: '',
   _poetryIdx: 0,
   _poetryList: [],
+  // 2048 game state
+  _g2048board: null,
+  _g2048score: 0,
+  _g2048over: false,
+  _g2048Started: false,
+  _g2048timerSec: 0,
+  _g2048timerId: null,
+  _g2048running: false,
+  _g2048prevBest: 0,
+  _g2048milestones: [128,256,512,1024,2048],
+  _g2048reached: {},
+  _g2048actx: null,
+  _g2048KeyHandler: null,
+  _g2048TouchHandler: null,
   genId: () => 'i_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
 
   defaults: {
@@ -62,6 +77,8 @@ const App = {
       '设计不是让它看起来怎么样，而是让它用起来怎么样。',
       'Bug 不是程序的错误，是程序在跟你开玩笑。',
     ],
+    g2048Best: 0,
+    g2048Theme: 'default',
   },
 
   init() {
@@ -69,6 +86,7 @@ const App = {
       this.store = new Store('portfolio_data', this.defaults, () => {
         if (this._ossConnected) this._ossSave();
       });
+      this._g2048reached = {};
       // Migrate skills from profile to global
       const d = this.store.data;
       if (d.profile && d.profile.skills && !d.skills) {
@@ -96,7 +114,9 @@ const App = {
       this.bind();
       this.initTabVisibility();
       this.loadTheme();
+      this._animating = false;  // 确保初始加载无动画
       this.switchPage('home');
+      requestAnimationFrame(() => this.updateTabIndicator());
       this.initScrollEffects();
       this.generatePageDecorations();
       this._ossInit();
@@ -667,7 +687,20 @@ const App = {
       const y = window.pageYOffset;
       if (hpDeco) hpDeco.style.transform = `translateY(${y*0.04}px)`;
       nav.classList.toggle('nav-scrolled', y > 60);
-      
+
+      // Scroll progress
+      const sp = $('scrollProgress');
+      if (sp) {
+        const maxY = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) - window.innerHeight;
+        const pct = maxY > 0 ? (y / maxY * 100) : 0;
+        sp.style.width = pct + '%';
+        sp.classList.toggle('visible', pct > 2);
+      }
+
+      // Back to top visibility (use .show class to match new CSS)
+      const btt = $('backToTop');
+      if (btt) btt.classList.toggle('show', y > 300);
+
       // Scroll animations
       document.querySelectorAll('.scroll-animate').forEach(el => {
         const rect = el.getBoundingClientRect();
@@ -817,24 +850,333 @@ const App = {
 
   // ===== PAGES =====
   switchPage(name) {
+    if (this._animating) return;
+    const cur = document.querySelector('.page.active');
+    if (!cur || cur.id === 'page-'+name) return;
+
+    this._animating = true;
+
+    // Swap pages instantly
+    cur.classList.remove('active');
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
     const pg = $('page-'+name);
-    if (pg) pg.classList.add('active');
+    if (pg) {
+      pg.classList.add('active');
+      pg.classList.add('page-enter');
+    }
+
+    // Update UI immediately (tabs, mobile menu)
     document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.page===name));
     document.querySelectorAll('.mobile-tab').forEach(t=>t.classList.toggle('active',t.dataset.page===name));
-    
     this.closeMobileMenu();
-    
-    if (name === 'gallery') {
-      this.renderGallery();
-      this.initPoetryCarousel();
+    this.updateTabIndicator();
+
+    // Enter animation cleanup + page-specific init
+    setTimeout(() => {
+      if (pg) pg.classList.remove('page-enter');
+      this._animating = false;
+
+      // Page-specific init AFTER transition
+      if (name === 'gallery') {
+        this.renderGallery();
+        this.initPoetryCarousel();
+      }
+      if (name === 'about') this.renderAboutExtras();
+      if (name === 'calendar') this.initCalendar();
+      if (name === 'game2048') {
+        if (!this._g2048Started) this.initGame2048();
+        this._g2048BindEvents();
+      }
+    }, 200);
+  },
+
+  // ===== 2048 Game =====
+  initGame2048() {
+    this._g2048prevBest = this.store.data.g2048Best || 0;
+    this._g2048board = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+    this._g2048AddTile();
+    this._g2048AddTile();
+    this._g2048over = false;
+    this._g2048score = 0;
+    this._g2048running = false;
+    this._g2048Started = true;
+    if (this._g2048timerId) clearInterval(this._g2048timerId);
+    this._g2048timerSec = 0;
+    $('g2048-timer').textContent = '00:00';
+    for (let i = 0; i < this._g2048milestones.length; i++) {
+      this._g2048reached[this._g2048milestones[i]] = false;
     }
-    if (name === 'about') this.renderAboutExtras();
-    if (name === 'dino') this.initDinoGame();
-    if (name === 'tetris') this.initTetrisGame();
-    if (name === 'breakout') this.initBreakoutGame();
-    if (name === 'game2048') this.initGame2048();
-    if (name === 'calendar') this.initCalendar();
+    $('g2048-best').textContent = this._g2048prevBest || '0';
+    this._g2048ApplyTheme(this.store.data.g2048Theme || 'default');
+    this._g2048InitThemeUI();
+    this._g2048Draw();
+    this._g2048BindEvents();
+  },
+
+  _g2048Blank() {
+    return [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+  },
+
+  _g2048Fmt(s) {
+    const m = Math.floor(s/60), sec = s%60;
+    return (m<10?'0':'')+m+':'+(sec<10?'0':'')+sec;
+  },
+
+  _g2048AddTile() {
+    const empty = [];
+    for (let y=0; y<4; y++) for (let x=0; x<4; x++) {
+      if (!this._g2048board[y][x]) empty.push({x,y});
+    }
+    if (!empty.length) return;
+    const p = empty[Math.floor(Math.random()*empty.length)];
+    this._g2048board[p.y][p.x] = Math.random()<0.9 ? 2 : 4;
+  },
+
+  _g2048Draw() {
+    const boardEl = $('g2048-board');
+    if (!boardEl) return;
+    boardEl.innerHTML = '';
+    for (let y=0; y<4; y++) for (let x=0; x<4; x++) {
+      const c = document.createElement('div');
+      c.className = 'cell';
+      const val = this._g2048board[y][x];
+      if (val) { c.textContent = val; c.classList.add('c-'+val); }
+      boardEl.appendChild(c);
+    }
+    $('g2048-score').textContent = this._g2048score;
+    $('g2048-best').textContent = this._g2048prevBest || '0';
+  },
+
+  _g2048PlayMerge(val) {
+    if (!this._g2048actx) this._g2048actx = new (window.AudioContext||window.webkitAudioContext)();
+    const osc = this._g2048actx.createOscillator();
+    const gain = this._g2048actx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(300+Math.log2(val)*40, this._g2048actx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(600+Math.log2(val)*60, this._g2048actx.currentTime+0.12);
+    gain.gain.setValueAtTime(0.18, this._g2048actx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this._g2048actx.currentTime+0.12);
+    osc.connect(gain); gain.connect(this._g2048actx.destination);
+    osc.start(); osc.stop(this._g2048actx.currentTime+0.12);
+  },
+
+  _g2048PlayMilestone() {
+    if (!this._g2048actx) this._g2048actx = new (window.AudioContext||window.webkitAudioContext)();
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    for (let i=0; i<notes.length; i++) {
+      const osc = this._g2048actx.createOscillator();
+      const gain = this._g2048actx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(notes[i], this._g2048actx.currentTime+i*0.1);
+      gain.gain.setValueAtTime(0.15, this._g2048actx.currentTime+i*0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, this._g2048actx.currentTime+i*0.1+0.25);
+      osc.connect(gain); gain.connect(this._g2048actx.destination);
+      osc.start(this._g2048actx.currentTime+i*0.1);
+      osc.stop(this._g2048actx.currentTime+i*0.1+0.25);
+    }
+  },
+
+  _g2048Move(dir) {
+    if (this._g2048over) return;
+    let moved = false;
+    const nb = this._g2048Blank();
+
+    if (dir==='up' || dir==='down') {
+      for (let x=0; x<4; x++) {
+        let col = [];
+        for (let y=0; y<4; y++) if (this._g2048board[y][x]) col.push(this._g2048board[y][x]);
+        if (dir==='down') col.reverse();
+        col = this._g2048Merge(col);
+        if (dir==='down') col.reverse();
+        for (let y=0; y<4; y++) { nb[y][x]=col[y]; if (nb[y][x]!==this._g2048board[y][x]) moved=true; }
+      }
+    } else {
+      for (let y=0; y<4; y++) {
+        let row = [];
+        for (let x=0; x<4; x++) if (this._g2048board[y][x]) row.push(this._g2048board[y][x]);
+        if (dir==='right') row.reverse();
+        row = this._g2048Merge(row);
+        if (dir==='right') row.reverse();
+        for (let x=0; x<4; x++) { nb[y][x]=row[x]; if (nb[y][x]!==this._g2048board[y][x]) moved=true; }
+      }
+    }
+
+    if (!moved) return;
+    if (!this._g2048running) {
+      this._g2048running = true;
+      this._g2048timerId = setInterval(() => {
+        this._g2048timerSec++;
+        $('g2048-timer').textContent = this._g2048Fmt(this._g2048timerSec);
+      }, 1000);
+    }
+    this._g2048board = nb;
+    this._g2048AddTile();
+    this._g2048Draw();
+    this._g2048Check();
+  },
+
+  _g2048Merge(arr) {
+    for (let i=0; i<arr.length-1; i++) {
+      if (arr[i]===arr[i+1]) {
+        const val = arr[i]*2;
+        arr[i] = val;
+        this._g2048score += val;
+        arr.splice(i+1, 1);
+        this._g2048PlayMerge(val);
+        for (let m=0; m<this._g2048milestones.length; m++) {
+          if (val>=this._g2048milestones[m] && !this._g2048reached[this._g2048milestones[m]]) {
+            this._g2048reached[this._g2048milestones[m]] = true;
+            this._g2048PlayMilestone();
+            this.toast('🎉 达到 '+this._g2048milestones[m]+' 分！', 'success');
+          }
+        }
+      }
+    }
+    while (arr.length < 4) arr.push(0);
+    return arr;
+  },
+
+  _g2048Check() {
+    for (let y=0; y<4; y++) for (let x=0; x<4; x++) if (!this._g2048board[y][x]) return;
+    for (let y=0; y<4; y++) for (let x=0; x<4; x++) {
+      if (x<3 && this._g2048board[y][x]===this._g2048board[y][x+1]) return;
+      if (y<3 && this._g2048board[y][x]===this._g2048board[y+1][x]) return;
+    }
+    this._g2048over = true;
+    if (this._g2048timerId) clearInterval(this._g2048timerId);
+    const finalScore = this._g2048score;
+    const isNewRecord = finalScore > this._g2048prevBest;
+    if (isNewRecord) {
+      this.store.data.g2048Best = finalScore;
+      this.store.save();
+      this._g2048prevBest = finalScore;
+    }
+    this._g2048ShowOverlay(finalScore, isNewRecord);
+  },
+
+  _g2048ShowOverlay(score, isNewRecord) {
+    const oldOv = document.querySelector('.game2048-overlay');
+    if (oldOv) oldOv.remove();
+
+    const board = $('g2048-board');
+    if (!board) return;
+    const ov = document.createElement('div');
+    ov.className = 'game2048-overlay show';
+    ov.innerHTML =
+      '<div class="game2048-overlay-box">'+
+      '<div class="game2048-overlay-title">游戏结束 🎯</div>'+
+      (isNewRecord ? '<div class="game2048-overlay-newrecord">🎉 新纪录！</div>' : '')+
+      '<div class="game2048-overlay-score">得分：<strong>'+score+'</strong></div>'+
+      '<div class="game2048-overlay-time">用时：'+this._g2048Fmt(this._g2048timerSec)+'</div>'+
+      '<div class="game2048-overlay-best">🏆 最高分：'+this._g2048prevBest+'</div>'+
+      '<button class="btn btn-p ripple" id="g2048-retryBtn">再来一局</button>'+
+      '</div>';
+    board.appendChild(ov);
+    $('g2048-retryBtn').onclick = () => this.initGame2048();
+  },
+
+  _g2048ApplyTheme(theme) {
+    this._g2048Theme = theme;
+    const wrap = document.querySelector('.game2048-wrap');
+    if (!wrap) return;
+    // Remove all theme classes
+    ['default','dark','forest','ocean','rose'].forEach(t => {
+      wrap.classList.remove('g2048-theme-'+t);
+    });
+    wrap.classList.add('g2048-theme-'+theme);
+
+    // Update dropdown active state
+    document.querySelectorAll('.g2048-theme-option').forEach(opt => {
+      opt.classList.toggle('active', opt.dataset.theme === theme);
+    });
+
+    // Persist
+    this.store.data.g2048Theme = theme;
+    this.store.save();
+  },
+
+  _g2048InitThemeUI() {
+    if (this._g2048ThemeInited) return;
+
+    // Theme button toggle
+    const btn = $('g2048-themeBtn');
+    const dd = $('g2048-themeDropdown');
+    if (btn && dd) {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dd.classList.toggle('show');
+      });
+      // Close on click outside
+      document.addEventListener('click', () => dd.classList.remove('show'), { once: false });
+      dd.addEventListener('click', (e) => e.stopPropagation());
+
+      // Theme option clicks
+      dd.querySelectorAll('.g2048-theme-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+          this._g2048ApplyTheme(opt.dataset.theme);
+          dd.classList.remove('show');
+        });
+      });
+    }
+
+    this._g2048ThemeInited = true;
+  },
+
+  _g2048BindEvents() {
+    // Keyboard — only when game2048 is active
+    const handler = (e) => {
+      if (!document.getElementById('page-game2048')?.classList.contains('active')) return;
+      const map = {
+        'w':'up','ArrowUp':'up',
+        's':'down','ArrowDown':'down',
+        'a':'left','ArrowLeft':'left',
+        'd':'right','ArrowRight':'right'
+      };
+      const dir = map[e.key];
+      if (dir) { e.preventDefault(); this._g2048Move(dir); }
+    };
+    document.removeEventListener('keydown', this._g2048KeyHandler);
+    this._g2048KeyHandler = handler;
+    document.addEventListener('keydown', handler);
+
+    // Touch swipe
+    const boardEl = $('g2048-board');
+    boardEl.removeEventListener('touchstart', this._g2048TouchHandler);
+    let sx=0, sy=0;
+    this._g2048TouchHandler = (e) => {
+      if (e.type === 'touchstart') {
+        sx = e.touches[0].clientX;
+        sy = e.touches[0].clientY;
+      } else if (e.type === 'touchend') {
+        const dx = e.changedTouches[0].clientX - sx;
+        const dy = e.changedTouches[0].clientY - sy;
+        const ax = Math.abs(dx), ay = Math.abs(dy);
+        if (Math.max(ax, ay) < 20) return;
+        if (ax > ay) this._g2048Move(dx > 0 ? 'right' : 'left');
+        else this._g2048Move(dy > 0 ? 'down' : 'up');
+      }
+    };
+    boardEl.addEventListener('touchstart', this._g2048TouchHandler);
+    boardEl.addEventListener('touchend', this._g2048TouchHandler);
+
+    // New game button
+    $('g2048-newBtn').onclick = () => this.initGame2048();
+
+    // End game button
+    $('g2048-endBtn').onclick = () => {
+      if (this._g2048over || !this._g2048Started) return;
+      this._g2048over = true;
+      if (this._g2048timerId) clearInterval(this._g2048timerId);
+      this._g2048running = false;
+      const finalScore = this._g2048score;
+      const isNewRecord = finalScore > this._g2048prevBest;
+      if (isNewRecord) {
+        this.store.data.g2048Best = finalScore;
+        this.store.save();
+        this._g2048prevBest = finalScore;
+      }
+      this._g2048ShowOverlay(finalScore, isNewRecord);
+    };
   },
 
   closeMobileMenu() {
@@ -846,6 +1188,14 @@ const App = {
       document.body.style.overflow = '';
       document.querySelector('html')?.classList.remove('no-scroll');
     }
+  },
+
+  updateTabIndicator() {
+    const indicator = $('tabIndicator');
+    const activeTab = document.querySelector('.tab.active');
+    if (!indicator || !activeTab) return;
+    indicator.style.left = activeTab.offsetLeft + 'px';
+    indicator.style.width = activeTab.offsetWidth + 'px';
   },
 
   // ===== GAME SELECTOR =====
@@ -1854,256 +2204,6 @@ const App = {
     }
   },
 
-  // ===== 2048 GAME =====
-  _gameBoard: null,
-  _gameScore: 0,
-  _gameBest: 0,
-  _gameTheme: 'classic',
-  _gameCells: [],
-  _gameNewTile: null,
-  _gameMergedTile: null,
-
-  initGame2048() {
-    this._gameScore = 0;
-    this._gameBest = parseInt(localStorage.getItem('game2048_best') || '0');
-    this._gameTheme = localStorage.getItem('game2048_theme') || 'classic';
-    this.updateGameScore();
-    this.renderGameBoard();
-    this.bindGameEvents();
-    this.selectGameTheme(this._gameTheme);
-  },
-
-  reset2048Game() {
-    this._gameScore = 0;
-    this._gameBest = parseInt(localStorage.getItem('game2048_best') || '0');
-    this._gameTheme = localStorage.getItem('game2048_theme') || 'classic';
-    this.updateGameScore();
-    this.renderGameBoard();
-    this.selectGameTheme(this._gameTheme);
-  },
-
-  renderGameBoard() {
-    const board = $('gameBoard');
-    board.innerHTML = '';
-    this._gameCells = [];
-    for (let i = 0; i < 16; i++) {
-      const cell = document.createElement('div');
-      cell.className = 'game-cell empty';
-      cell.dataset.value = '0';
-      board.appendChild(cell);
-      this._gameCells.push(0);
-    }
-    this.addRandomTile();
-    this.addRandomTile();
-  },
-
-  addRandomTile() {
-    const emptyIndices = this._gameCells
-      .map((val, idx) => val === 0 ? idx : -1)
-      .filter(idx => idx !== -1);
-    if (emptyIndices.length === 0) return;
-    const idx = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
-    const value = Math.random() < 0.9 ? 2 : 4;
-    this._gameCells[idx] = value;
-    const cell = $('gameBoard').children[idx];
-    cell.textContent = value;
-    cell.dataset.value = value;
-    cell.classList.remove('empty');
-    cell.classList.add('new');
-    setTimeout(() => cell.classList.remove('new'), 200);
-  },
-
-  move(direction) {
-    let moved = false;
-    const vectors = {
-      up: { row: -1, col: 0 },
-      down: { row: 1, col: 0 },
-      left: { row: 0, col: -1 },
-      right: { row: 0, col: 1 }
-    };
-    const vector = vectors[direction];
-    
-    const traverseOrder = direction === 'down' || direction === 'right' 
-      ? [3, 2, 1, 0] 
-      : [0, 1, 2, 3];
-    
-    for (let i = 0; i < 4; i++) {
-      const line = this.getLine(i, direction);
-      const merged = this.mergeLine(line);
-      const movedLine = this.moveLine(merged);
-      if (JSON.stringify(line) !== JSON.stringify(movedLine)) {
-        moved = true;
-        this.setLine(i, direction, movedLine);
-      }
-    }
-    
-    if (moved) {
-      setTimeout(() => {
-        this.addRandomTile();
-        if (!this.canMove()) {
-          this.gameOver();
-        }
-      }, 100);
-    }
-  },
-
-  getLine(index, direction) {
-    const line = [];
-    if (direction === 'up' || direction === 'down') {
-      for (let i = 0; i < 4; i++) {
-        line.push(this._gameCells[i * 4 + index]);
-      }
-    } else {
-      for (let i = 0; i < 4; i++) {
-        line.push(this._gameCells[index * 4 + i]);
-      }
-    }
-    if (direction === 'down' || direction === 'right') {
-      line.reverse();
-    }
-    return line;
-  },
-
-  setLine(index, direction, line) {
-    if (direction === 'down' || direction === 'right') {
-      line.reverse();
-    }
-    if (direction === 'up' || direction === 'down') {
-      for (let i = 0; i < 4; i++) {
-        this._gameCells[i * 4 + index] = line[i];
-        const cell = $('gameBoard').children[i * 4 + index];
-        cell.textContent = line[i] || '';
-        cell.dataset.value = line[i] || '0';
-        cell.className = line[i] ? 'game-cell' : 'game-cell empty';
-      }
-    } else {
-      for (let i = 0; i < 4; i++) {
-        this._gameCells[index * 4 + i] = line[i];
-        const cell = $('gameBoard').children[index * 4 + i];
-        cell.textContent = line[i] || '';
-        cell.dataset.value = line[i] || '0';
-        cell.className = line[i] ? 'game-cell' : 'game-cell empty';
-      }
-    }
-  },
-
-  moveLine(line) {
-    let result = line.filter(val => val !== 0);
-    while (result.length < 4) {
-      result.push(0);
-    }
-    return result;
-  },
-
-  mergeLine(line) {
-    const result = [];
-    let i = 0;
-    while (i < line.length) {
-      if (line[i] !== 0 && line[i] === line[i + 1]) {
-        const merged = line[i] * 2;
-        result.push(merged);
-        this._gameScore += merged;
-        if (this._gameScore > this._gameBest) {
-          this._gameBest = this._gameScore;
-          localStorage.setItem('game2048_best', this._gameBest.toString());
-        }
-        this.updateGameScore();
-        i += 2;
-      } else {
-        result.push(line[i]);
-        i++;
-      }
-    }
-    return result;
-  },
-
-  canMove() {
-    for (let i = 0; i < 16; i++) {
-      if (this._gameCells[i] === 0) return true;
-      const row = Math.floor(i / 4);
-      const col = i % 4;
-      if (row < 3 && this._gameCells[i] === this._gameCells[i + 4]) return true;
-      if (col < 3 && this._gameCells[i] === this._gameCells[i + 1]) return true;
-    }
-    return false;
-  },
-
-  gameOver() {
-    this.toast('游戏结束！得分: ' + this._gameScore, 3000);
-  },
-
-  updateGameScore() {
-    $('gameScore').textContent = this._gameScore.toString();
-    $('gameBest').textContent = this._gameBest.toString();
-  },
-
-  newGame() {
-    this._gameScore = 0;
-    this.updateGameScore();
-    this.renderGameBoard();
-  },
-
-  selectGameTheme(theme) {
-    this._gameTheme = theme;
-    localStorage.setItem('game2048_theme', theme);
-    document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelector(`[data-theme="${theme}"]`).classList.add('active');
-    const board = $('gameBoard');
-    board.className = `game-board game-theme-${theme}`;
-  },
-
-  bindGameEvents() {
-    const keyHandler = (e) => {
-      if (!document.querySelector('#page-game2048.active')) return;
-      switch (e.key.toLowerCase()) {
-        case 'w': e.preventDefault(); this.move('up'); break;
-        case 's': e.preventDefault(); this.move('down'); break;
-        case 'a': e.preventDefault(); this.move('left'); break;
-        case 'd': e.preventDefault(); this.move('right'); break;
-      }
-    };
-    
-    document.removeEventListener('keydown', this._gameKeyHandler);
-    this._gameKeyHandler = keyHandler;
-    document.addEventListener('keydown', this._gameKeyHandler);
-
-    const newBtn = $('newGameBtn');
-    if (newBtn) {
-      newBtn.addEventListener('click', () => this.newGame());
-    }
-    
-    const helpBtn = $('gameHelp');
-    if (helpBtn) {
-      helpBtn.addEventListener('click', () => {
-        this.modal({
-          title: '🎮 2048 游戏教程',
-          body: `
-            <p style="line-height:1.8;margin-bottom:12px"><strong>🎯 游戏目标：</strong></p>
-            <p style="line-height:1.8;font-size:0.9rem">合并相同数字，达到 <strong style="color:var(--red);font-size:1.1rem">2048</strong> 方块！</p>
-            
-            <p style="line-height:1.8;margin:16px 0 12px;font-weight:600"><strong>🎮 操作说明：</strong></p>
-            <p style="line-height:1.8;font-size:0.9rem"><strong>W</strong> 向上移动</p>
-            <p style="line-height:1.8;font-size:0.9rem"><strong>S</strong> 向下移动</p>
-            <p style="line-height:1.8;font-size:0.9rem"><strong>A</strong> 向左移动</p>
-            <p style="line-height:1.8;font-size:0.9rem"><strong>D</strong> 向右移动</p>
-            
-            <p style="line-height:1.8;margin:16px 0 12px;font-weight:600"><strong>💡 技巧提示：</strong></p>
-            <p style="line-height:1.8;font-size:0.85rem">• 尽量保持最大数字在角落</p>
-            <p style="line-height:1.8;font-size:0.85rem">• 不要急于合并，思考几步后的布局</p>
-            <p style="line-height:1.8;font-size:0.85rem">• 优先填满空白区域</p>
-          `,
-          footer: [{label:'开始游戏', cls:'btn-p'}]
-        });
-      });
-    }
-
-    document.querySelectorAll('.theme-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.selectGameTheme(btn.dataset.theme);
-      });
-    });
-  },
-
   // ===== CALENDAR =====
   _calYear: new Date().getFullYear(),
   _calMonth: new Date().getMonth(),
@@ -2369,16 +2469,10 @@ const App = {
 
     // Back to top
     const backToTop = $('backToTop');
-    window.addEventListener('scroll', () => {
-      if (window.scrollY > 300) {
-        backToTop.classList.add('visible');
-      } else {
-        backToTop.classList.remove('visible');
-      }
-    });
     backToTop.addEventListener('click', () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
+    window.addEventListener('resize', ()=>this.updateTabIndicator());
 
     // Edit mode (password protected)
     $('editBtn').addEventListener('click', ()=>this.tryToggleEdit());
@@ -3289,13 +3383,38 @@ const App = {
   },
 
   // ===== TOAST =====
-  toast(msg, dur=2500) {
-    const c=$('toastC');
-    const el=document.createElement('div');
-    el.className='toast'; el.textContent=msg;
+  toast(msg, type='info', dur=3000) {
+    const c = $('toastC');
+    if (!c) return;
+
+    // Limit to 3 visible toasts
+    while (c.children.length >= 3) {
+      const old = c.firstChild;
+      old.classList.remove('show');
+      setTimeout(() => old.remove(), 300);
+    }
+
+    const el = document.createElement('div');
+    el.className = 'toast toast-'+type;
+    const icons = { success:'✓', error:'✗', info:'●' };
+    el.innerHTML = '<span class="toast-icon">'+(icons[type]||'●')+'</span><span class="toast-text">'+esc(msg)+'</span><span class="toast-progress" style="width:100%"></span>';
     c.appendChild(el);
-    requestAnimationFrame(()=>el.classList.add('show'));
-    setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),300);},dur);
+
+    requestAnimationFrame(() => el.classList.add('show'));
+
+    const prog = el.querySelector('.toast-progress');
+    const start = Date.now();
+    const tick = () => {
+      const pct = Math.max(0, 100 - (Date.now() - start) / dur * 100);
+      if (prog) prog.style.width = pct + '%';
+      if (pct > 0) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+
+    setTimeout(() => {
+      el.classList.remove('show');
+      setTimeout(() => el.remove(), 300);
+    }, dur);
   },
 
   // ===== LINK HELPERS =====
@@ -3328,16 +3447,46 @@ const App = {
 
   // ===== POETRY CAROUSEL =====
   _defaultPoetry: [
-    { text: '寻寻觅觅，冷冷清清，凄凄惨惨戚戚。乍暖还寒时候，最难将息。', author: '李清照《声声慢》', char: '�' },
+    { text: '寻寻觅觅，冷冷清清，凄凄惨惨戚戚。乍暖还寒时候，最难将息。', author: '李清照《声声慢》', char: '📜' },
     { text: '明月几时有？把酒问青天。不知天上宫阙，今夕是何年。', author: '苏轼《水调歌头》', char: '🍶' },
     { text: '众里寻他千百度，蓦然回首，那人却在，灯火阑珊处。', author: '辛弃疾《青玉案》', char: '✨' },
     { text: '寒蝉凄切，对长亭晚，骤雨初歇。都门帐饮无绪，留恋处，兰舟催发。', author: '柳永《雨霖铃》', char: '🌧️' },
     { text: '无可奈何花落去，似曾相识燕归来。小园香径独徘徊。', author: '晏殊《浣溪沙》', char: '🦋' },
     { text: '庭院深深深几许？杨柳堆烟，帘幕无重数。', author: '欧阳修《蝶恋花》', char: '🌿' },
-    { text: '伫倚危楼风细细，望极春愁，黯黯生天际。', author: '柳永《蝶恋花》', char: '�' },
+    { text: '伫倚危楼风细细，望极春愁，黯黯生天际。', author: '柳永《蝶恋花》', char: '🍃' },
     { text: '十年生死两茫茫，不思量，自难忘。千里孤坟，无处话凄凉。', author: '苏轼《江城子》', char: '🌙' },
     { text: '红藕香残玉簟秋。轻解罗裳，独上兰舟。', author: '李清照《一剪梅》', char: '🪷' },
     { text: '醉里挑灯看剑，梦回吹角连营。八百里分麾下炙，五十弦翻塞外声。', author: '辛弃疾《破阵子》', char: '⚔️' },
+    { text: '君不见黄河之水天上来，奔流到海不复回。君不见高堂明镜悲白发，朝如青丝暮成雪。', author: '李白《将进酒》', char: '🌊' },
+    { text: '人生得意须尽欢，莫使金樽空对月。天生我材必有用，千金散尽还复来。', author: '李白《将进酒》', char: '🥂' },
+    { text: '床前明月光，疑是地上霜。举头望明月，低头思故乡。', author: '李白《静夜思》', char: '🌙' },
+    { text: '大漠孤烟直，长河落日圆。', author: '王维《使至塞上》', char: '🏜️' },
+    { text: '海内存知己，天涯若比邻。', author: '王勃《送杜少府之任蜀州》', char: '🤝' },
+    { text: '独在异乡为异客，每逢佳节倍思亲。', author: '王维《九月九日忆山东兄弟》', char: '🏮' },
+    { text: '春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少。', author: '孟浩然《春晓》', char: '🌸' },
+    { text: '千山鸟飞绝，万径人踪灭。孤舟蓑笠翁，独钓寒江雪。', author: '柳宗元《江雪》', char: '❄️' },
+    { text: '日照香炉生紫烟，遥看瀑布挂前川。飞流直下三千尺，疑是银河落九天。', author: '李白《望庐山瀑布》', char: '💦' },
+    { text: '两个黄鹂鸣翠柳，一行白鹭上青天。窗含西岭千秋雪，门泊东吴万里船。', author: '杜甫《绝句》', char: '🦅' },
+    { text: '好雨知时节，当春乃发生。随风潜入夜，润物细无声。', author: '杜甫《春夜喜雨》', char: '☔' },
+    { text: '慈母手中线，游子身上衣。临行密密缝，意恐迟迟归。', author: '孟郊《游子吟》', char: '🧵' },
+    { text: '锄禾日当午，汗滴禾下土。谁知盘中餐，粒粒皆辛苦。', author: '李绅《悯农》', char: '🌾' },
+    { text: '昨夜星辰昨夜风，画楼西畔桂堂东。身无彩凤双飞翼，心有灵犀一点通。', author: '李商隐《无题》', char: '💫' },
+    { text: '相见时难别亦难，东风无力百花残。春蚕到死丝方尽，蜡炬成灰泪始干。', author: '李商隐《无题》', char: '🕯️' },
+    { text: '离离原上草，一岁一枯荣。野火烧不尽，春风吹又生。', author: '白居易《赋得古原草送别》', char: '🌱' },
+    { text: '小荷才露尖尖角，早有蜻蜓立上头。', author: '杨万里《小池》', char: '🪰' },
+    { text: '接天莲叶无穷碧，映日荷花别样红。', author: '杨万里《晓出净慈寺送林子方》', char: '🪷' },
+    { text: '山重水复疑无路，柳暗花明又一村。', author: '陆游《游山西村》', char: '🌸' },
+    { text: '死去元知万事空，但悲不见九州同。王师北定中原日，家祭无忘告乃翁。', author: '陆游《示儿》', char: '🗡️' },
+    { text: '竹杖芒鞋轻胜马，谁怕？一蓑烟雨任平生。', author: '苏轼《定风波》', char: '🎋' },
+    { text: '人生如逆旅，我亦是行人。', author: '苏轼《临江仙》', char: '🚶' },
+    { text: '此情可待成追忆，只是当时已惘然。', author: '李商隐《锦瑟》', char: '💭' },
+    { text: '问君能有几多愁？恰似一江春水向东流。', author: '李煜《虞美人》', char: '🌊' },
+    { text: '落红不是无情物，化作春泥更护花。', author: '龚自珍《己亥杂诗》', char: '🌹' },
+    { text: '但愿人长久，千里共婵娟。', author: '苏轼《水调歌头》', char: '🌕' },
+    { text: '长风破浪会有时，直挂云帆济沧海。', author: '李白《行路难》', char: '⛵' },
+    { text: '举杯邀明月，对影成三人。', author: '李白《月下独酌》', char: '🌙' },
+    { text: '采菊东篱下，悠然见南山。', author: '陶渊明《饮酒》', char: '🏔️' },
+    { text: '关关雎鸠，在河之洲。窈窕淑女，君子好逑。', author: '《诗经·关雎》', char: '💘' },
   ],
 
   initPoetryCarousel() {
