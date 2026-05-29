@@ -5,7 +5,7 @@
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function $(id) { return document.getElementById(id); }
 
-const EDIT_PW = '1';
+const EDIT_PW = '00';
 
 const App = {
   editMode: false,
