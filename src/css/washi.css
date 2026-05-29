@@ -1262,18 +1262,24 @@ body {
 .edit-mode .contact { cursor: pointer; }
 
 /* ===== About Footer ===== */
+.about-wrap { position: relative; overflow: hidden; }
+
 .about-footer {
-  width: 100%;
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-top: 40px;
-  padding-top: 20px;
-  border-top: 1px solid rgba(231, 76, 124, 0.15);
   font-family: 'LXGW WenKai', 'ZCOOL XiaoWei', 'Ma Shan Zheng', cursive;
   font-size: 1rem;
   letter-spacing: 2px;
+  opacity: 0.3;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
   animation: afGlow 3s ease-in-out infinite;
 }
 
