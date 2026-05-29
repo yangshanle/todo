@@ -2822,9 +2822,13 @@ const App = {
       $('pwModal').style.display = 'none';
       this.setEditMode(true);
     } else {
-      this.toast('❌ 密码错误');
       $('pwInput').value = '';
       $('pwInput').focus();
+      this.modal({
+        title: '❌ 密码错误',
+        body: `<div class="pw-error-msg">想要密码就去找乐乐同学喵 <span class="pw-kaomoji">(｡>ㅅ<｡)♡</span></div>`,
+        footer: [{ label: '知道啦', cls: 'btn-p', action: () => this.closeModal() }]
+      });
     }
   },
 

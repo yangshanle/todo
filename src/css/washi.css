@@ -4349,4 +4349,26 @@ img.lazy-placeholder {
   .game2048-board .c-2048 { font-size: 0.85rem !important; }
 }
 
+/* ===== Password Error Modal ===== */
+.pw-error-msg {
+  font-family: 'Ma Shan Zheng', 'ZCOOL XiaoWei', 'LXGW WenKai', cursive;
+  font-size: 1.3rem;
+  text-align: center;
+  padding: 16px 8px;
+  color: var(--text);
+  line-height: 1.8;
+  letter-spacing: 1px;
+}
 
+.pw-error-msg .pw-kaomoji {
+  display: inline-block;
+  font-size: 1.1rem;
+  color: #e74c7c;
+  animation: pwKaomojiFloat 2s ease-in-out infinite;
+  font-family: 'Ma Shan Zheng', 'ZCOOL XiaoWei', 'LXGW WenKai', cursive;
+}
+
+@keyframes pwKaomojiFloat {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-4px) rotate(3deg); }
+}
