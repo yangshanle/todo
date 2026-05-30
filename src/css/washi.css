@@ -2225,11 +2225,18 @@ img.lazy-placeholder {
 .poetry-indicator {
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 8px;
   margin-top: 20px;
+  max-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .poetry-indicator .dot {
+  flex-shrink: 0;
   width: 5px;
   height: 5px;
   border-radius: 50%;
@@ -2247,6 +2254,15 @@ img.lazy-placeholder {
 
 .poetry-indicator .dot:hover {
   background: var(--gold);
+}
+
+.poetry-indicator .dot-ellipsis {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  color: var(--t3);
+  letter-spacing: 1px;
+  padding: 0 2px;
+  user-select: none;
 }
 
 /* ===== 3D Decorations Layer ===== */

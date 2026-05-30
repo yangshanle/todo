@@ -3541,11 +3541,40 @@ const App = {
 
   _renderPoetryIndicator() {
     const indicator = $('poetryIndicator');
-    indicator.innerHTML = this._poetryList.map((_, i) => 
-      `<span class="dot ${i === this._poetryIdx ? 'active' : ''}" data-idx="${i}"></span>`
-    ).join('');
+    const total = this._poetryList.length;
+    const MAX_VISIBLE = 7;
 
-    // Add click events for dots
+    let html = '';
+    if (total <= MAX_VISIBLE) {
+      html = this._poetryList.map((_, i) =>
+        `<span class="dot ${i === this._poetryIdx ? 'active' : ''}" data-idx="${i}"></span>`
+      ).join('');
+    } else {
+      const sideCount = 2;
+      let start = this._poetryIdx - sideCount;
+      let end = this._poetryIdx + sideCount;
+
+      if (start < 1) { end += (1 - start); start = 1; }
+      if (end > total - 2) { start -= (end - (total - 2)); end = total - 2; }
+      start = Math.max(1, start);
+      end = Math.min(total - 2, end);
+
+      // First dot
+      html += `<span class="dot ${this._poetryIdx === 0 ? 'active' : ''}" data-idx="0"></span>`;
+      // Left ellipsis
+      if (start > 1) html += `<span class="dot-ellipsis">⋯</span>`;
+      // Middle dots
+      for (let i = start; i <= end; i++) {
+        html += `<span class="dot ${i === this._poetryIdx ? 'active' : ''}" data-idx="${i}"></span>`;
+      }
+      // Right ellipsis
+      if (end < total - 2) html += `<span class="dot-ellipsis">⋯</span>`;
+      // Last dot
+      html += `<span class="dot ${this._poetryIdx === total - 1 ? 'active' : ''}" data-idx="${total - 1}"></span>`;
+    }
+
+    indicator.innerHTML = html;
+
     indicator.querySelectorAll('.dot').forEach(dot => {
       dot.addEventListener('click', () => {
         this._poetryIdx = parseInt(dot.dataset.idx);
